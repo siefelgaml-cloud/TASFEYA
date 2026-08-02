@@ -3,525 +3,479 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تصفية رحلات سياحية - Look at Egypt Tours</title>
+    <title>نظام تصفية واستحقاق حسابات المرشدين السياحيين</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts (Cairo & Aref Ruqaa / Amiri for Vintage feel) -->
-    <link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <!-- SheetJS for Excel -->
+    <!-- Google Fonts (Amiri & Cairo) -->
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- SheetJS for Excel Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
-        body { 
-            font-family: 'Cairo', serif; 
-            background-color: #f2ebd9; 
-            background-image: radial-gradient(#d5c8ab 1.2px, transparent 1.2px);
-            background-size: 24px 24px;
-            color: #2b1f1d;
+        body {
+            font-family: 'Cairo', serif;
+            background-color: #e3d3bd;
+            color: #1a2530;
         }
-        .vintage-font { font-family: 'Aref Ruqaa', serif; }
-        
-        /* Vintage Paper Card styling */
-        .vintage-card {
-            background-color: #faf6ed;
-            border: 2px solid #4a3b32;
-            box-shadow: 6px 6px 0px #4a3b32;
-            position: relative;
+        .vintage-title {
+            font-family: 'Amiri', serif;
         }
-        
-        /* Vintage Buttons */
-        .vintage-btn-primary {
-            background-color: #8c2d19;
-            color: #faf6ed;
-            border: 2px solid #4a3b32;
-            box-shadow: 3px 3px 0px #4a3b32;
-            transition: all 0.15s ease-in-out;
+        /* Custom UI Shadows & Borders matching the exact design */
+        .gold-card {
+            background-color: #fdfbf7;
+            border: 2px solid #b89855;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
-        .vintage-btn-primary:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 5px 5px 0px #4a3b32;
-            background-color: #722312;
+        .gold-border-bottom {
+            border-bottom: 2px solid #b89855;
         }
-        .vintage-btn-primary:active {
-            transform: translate(1px, 1px);
-            box-shadow: 2px 2px 0px #4a3b32;
+        .sidebar-bg {
+            background-color: #0d233a;
         }
-
-        .vintage-btn-green {
-            background-color: #2e5a36;
-            color: #faf6ed;
-            border: 2px solid #4a3b32;
-            box-shadow: 3px 3px 0px #4a3b32;
-            transition: all 0.15s ease-in-out;
+        .sidebar-btn-active {
+            background-color: #8c6a1e;
+            color: #ffffff;
+            border: 1px solid #d4af37;
         }
-        .vintage-btn-green:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 5px 5px 0px #4a3b32;
-            background-color: #224429;
+        .sidebar-btn-inactive {
+            background-color: #122f4d;
+            color: #d1d5db;
         }
-
-        /* Inputs Classic Style */
-        .vintage-input {
-            background-color: #f4eee1;
-            border: 1.5px solid #6b5548;
-            color: #2b1f1d;
+        .sidebar-btn-inactive:hover {
+            background-color: #1a3f66;
+            color: #ffffff;
+        }
+        .table-header-bg {
+            background-color: #eadecc;
+            color: #2c1e0b;
+        }
+        .custom-input {
+            background-color: #ffffff;
+            border: 1px solid #c2b29b;
+            border-radius: 3px;
+            padding: 6px 10px;
+            width: 100%;
+            outline: none;
             transition: all 0.2s;
         }
-        .vintage-input:focus {
-            border-color: #8c2d19;
-            background-color: #ffffff;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(140, 45, 25, 0.25);
+        .custom-input:focus {
+            border-color: #8c6a1e;
+            box-shadow: 0 0 3px rgba(140, 106, 30, 0.4);
         }
-
-        /* Decorative stamp effect */
-        .stamp-badge {
-            border: 2px dashed #8c2d19;
-            color: #8c2d19;
-            transform: rotate(-3deg);
-            display: inline-block;
-        }
-
-        @media print {
-            .no-print { display: none !important; }
-            body { background: white; }
-            .vintage-card { box-shadow: none; border: 1px solid #000; }
+        .logo-box {
+            border-right: 2px dashed #b89855;
+            padding-right: 15px;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col pb-12">
+<body class="min-h-screen flex">
 
-    <!-- Header -->
-    <header class="bg-[#3c2f2f] text-[#faf6ed] p-6 shadow-md border-b-4 border-[#8c2d19] no-print relative">
-        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full border-2 border-[#d4a359] flex items-center justify-center bg-[#2b1f1d]">
-                    <i class="fa-solid fa-pyramid-monument text-[#d4a359] text-2xl"></i>
-                </div>
-                <div>
-                    <h1 class="text-3xl font-bold vintage-font tracking-wide text-[#f3e5ab]">Look at Egypt Tours</h1>
-                    <p class="text-xs text-[#d4a359] font-semibold tracking-wider">شركة لوك ات إيجيبت (نظام تصفيات ومراجعة الرحلات الكلاسيكي)</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-3">
-                <div id="clock" class="text-xs bg-[#2b1f1d] text-[#d4a359] px-4 py-2 rounded border border-[#6b5548] font-mono tracking-widest shadow-inner"></div>
-            </div>
-        </div>
-    </header>
+    <!-- MAIN CONTENT AREA (Left side) -->
+    <div class="flex-grow p-4 md:p-6 overflow-y-auto">
+        <div class="max-w-4xl mx-auto space-y-5">
 
-    <!-- Navigation -->
-    <div class="bg-[#e2d5bd] border-b-2 border-[#4a3b32] sticky top-0 z-10 no-print shadow-sm">
-        <div class="container mx-auto flex overflow-x-auto">
-            <button onclick="changeTab('submit')" id="tab-submit" class="py-3.5 px-6 font-bold text-[#8c2d19] border-b-4 border-[#8c2d19] flex items-center gap-2 whitespace-nowrap text-sm">
-                <i class="fa-solid fa-pen-nib"></i> 1. تقديم تصفية
-            </button>
-            <button onclick="changeTab('review')" id="tab-review" class="py-3.5 px-6 font-bold text-[#5c4a4a] hover:text-[#2b1f1d] border-b-4 border-transparent flex items-center gap-2 whitespace-nowrap text-sm">
-                <i class="fa-solid fa-stamp"></i> 2. مراجعة الإدارة
-                <span id="badge" class="bg-[#8c2d19] text-[#faf6ed] text-xs px-2 py-0.5 rounded-full hidden">0</span>
-            </button>
-            <button onclick="changeTab('archive')" id="tab-archive" class="py-3.5 px-6 font-bold text-[#5c4a4a] hover:text-[#2b1f1d] border-b-4 border-transparent flex items-center gap-2 whitespace-nowrap text-sm">
-                <i class="fa-solid fa-box-archive"></i> 3. الأرشيف المعتمد
-            </button>
+            <!-- HEADER BANNER -->
+            <header class="gold-card p-4 rounded flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="logo-box flex flex-col items-center md:items-start text-center md:text-right">
+                    <h2 class="text-xl font-extrabold tracking-widest text-[#0d233a] font-serif">LOOK AT</h2>
+                    <h1 class="text-xl font-bold tracking-wider text-[#8c6a1e] font-serif -mt-1">EGYPT TOURS</h1>
+                    <p class="text-[9px] text-gray-500 tracking-widest mt-0.5">THE LUXURY DMC OF EGYPT</p>
+                </div>
+                <div class="text-center flex-grow">
+                    <h1 class="text-2xl md:text-3xl font-bold vintage-title text-[#0d233a] gold-border-bottom pb-1 inline-block px-6">
+                        نظام تصفية واستحقاق حسابات المرشدين السياحيين
+                    </h1>
+                </div>
+            </header>
+
+            <!-- TAB 1: FORM (تقديم التصفية) -->
+            <main id="sec-submit" class="space-y-5">
+                
+                <!-- SECTION: GUIDE & TRIP DATA -->
+                <div class="gold-card p-5 rounded">
+                    <h3 class="text-md font-bold text-[#0d233a] gold-border-bottom pb-2 mb-4 text-center">
+                        بيانات الرحلة والمرشد
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-bold mb-1 text-gray-700">اسم المرشد: <span class="text-red-600">*</span></label>
+                            <input type="text" id="guide-name" placeholder="اكتب اسم المرشد هنا..." class="custom-input text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold mb-1 text-gray-700">رقم الملف: <span class="text-red-600">*</span></label>
+                            <input type="text" id="tour-code" placeholder="مثال: FL-2026-102" class="custom-input text-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: EXPENSES TABLE -->
+                <div class="gold-card p-5 rounded">
+                    <h3 class="text-md font-bold text-[#0d233a] gold-border-bottom pb-2 mb-4 text-center">
+                        العهدة والمصروفات المباشرة (EGP)
+                    </h3>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-right border-collapse">
+                            <thead>
+                                <tr class="table-header-bg text-xs font-bold border-b border-[#b89855]">
+                                    <th class="p-2.5 w-1/4">البيان</th>
+                                    <th class="p-2.5 w-1/4 text-center">المبلغ (بالجنيه المصري)</th>
+                                    <th class="p-2.5 w-2/4">ملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <tr>
+                                    <td class="p-2 font-semibold text-xs">العهدة المستلمة</td>
+                                    <td class="p-2"><input type="number" id="val-ohda" oninput="recalc()" value="0" class="custom-input text-center font-bold text-emerald-700"></td>
+                                    <td class="p-2"><input type="text" id="note-ohda" placeholder="مثال: نقداً من الخزينة / تحويل" class="custom-input text-xs text-gray-500"></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 font-semibold text-xs">مصاريف الغداء</td>
+                                    <td class="p-2"><input type="number" id="val-[#8c6a1e]unch" oninput="recalc()" value="0" class="custom-input text-center font-bold text-rose-700 exp-input"></td>
+                                    <td class="p-2"><input type="text" id="note-lunch" placeholder="تفاصيل مطعم الغداء..." class="custom-input text-xs text-gray-500"></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 font-semibold text-xs">الإكراميات (Tips)</td>
+                                    <td class="p-2"><input type="number" id="val-tips" oninput="recalc()" value="0" class="custom-input text-center font-bold text-rose-700 exp-input"></td>
+                                    <td class="p-2"><input type="text" id="note-tips" placeholder="إكراميات سائق / مطار / معابد..." class="custom-input text-xs text-gray-500"></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 font-semibold text-xs">الباركينج والرسوم</td>
+                                    <td class="p-2"><input type="number" id="val-parking" oninput="recalc()" value="0" class="custom-input text-center font-bold text-rose-700 exp-input"></td>
+                                    <td class="p-2"><input type="text" id="note-parking" placeholder="رسوم انتظار / بوابات..." class="custom-input text-xs text-gray-500"></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 font-semibold text-xs">أتعاب المرشد (اليومية)</td>
+                                    <td class="p-2"><input type="number" id="val-fees" oninput="recalc()" value="0" class="custom-input text-center font-bold text-rose-700 exp-input"></td>
+                                    <td class="p-2"><input type="text" id="note-fees" placeholder="عدد الأيام / تفاصيل يومية الإرشاد..." class="custom-input text-xs text-gray-500"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Dynamic Totals Summary -->
+                    <div class="mt-5 p-4 bg-[#f3ebd9] border border-[#b89855] rounded flex flex-col md:flex-row justify-between items-center gap-3 text-xs font-bold">
+                        <div>إجمالي المصروفات والأتعاب: <span id="txt-total-exp" class="text-rose-800 text-sm font-mono mr-1">0 EGP</span></div>
+                        <div>الصافي المتبقي / المستحق: <span id="txt-net-result" class="text-[#0d233a] text-base font-mono mr-1">0 EGP</span></div>
+                    </div>
+
+                    <div class="mt-5 text-left">
+                        <button onclick="sendSettlement()" class="bg-[#8c6a1e] hover:bg-[#705417] text-white px-8 py-2.5 rounded font-bold text-sm shadow transition">
+                            <i class="fa-solid fa-paper-plane ml-2"></i> إرسال التصفية للمراجعة
+                        </button>
+                    </div>
+                </div>
+            </main>
+
+            <!-- TAB 2: REVIEW SECTION -->
+            <section id="sec-review" class="hidden space-y-5">
+                <div id="pin-screen-rev" class="gold-card p-6 rounded text-center max-w-sm mx-auto my-8">
+                    <h3 class="font-bold text-sm text-[#0d233a] mb-3">أدخل كلمة المرور لمراجعة الطلبات</h3>
+                    <input type="password" id="input-pin-rev" class="custom-input text-center text-lg tracking-widest mb-3">
+                    <button onclick="verifyPin('rev')" class="w-full bg-[#0d233a] text-white py-2 rounded font-bold text-xs">دخول</button>
+                </div>
+                <div id="panel-rev" class="hidden space-y-4">
+                    <div id="cards-pending" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <!-- TAB 3: ARCHIVE SECTION -->
+            <section id="sec-archive" class="hidden space-y-5">
+                <div id="pin-screen-arc" class="gold-card p-6 rounded text-center max-w-sm mx-auto my-8">
+                    <h3 class="font-bold text-sm text-[#0d233a] mb-3">أدخل كلمة المرور لدخول الأرشيف</h3>
+                    <input type="password" id="input-pin-arc" class="custom-input text-center text-lg tracking-widest mb-3">
+                    <button onclick="verifyPin('arc')" class="w-full bg-[#0d233a] text-white py-2 rounded font-bold text-xs">دخول</button>
+                </div>
+                <div id="panel-arc" class="hidden space-y-4">
+                    <div class="flex justify-between items-center gold-card p-3 rounded">
+                        <span class="font-bold text-xs text-[#0d233a]">التصفيات المعتمدة في النظام</span>
+                        <button onclick="exportExcel()" class="bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-bold hover:bg-emerald-800"><i class="fa-solid fa-file-excel ml-1"></i> تصدير Excel</button>
+                    </div>
+                    <div class="gold-card rounded overflow-x-auto">
+                        <table class="w-full text-xs text-right">
+                            <thead class="table-header-bg border-b border-[#b89855]">
+                                <tr>
+                                    <th class="p-2.5">الكود</th>
+                                    <th class="p-2.5">اسم المرشد</th>
+                                    <th class="p-2.5">رقم الملف</th>
+                                    <th class="p-2.5">العهدة</th>
+                                    <th class="p-2.5">إجمالي المصروفات</th>
+                                    <th class="p-2.5">الصافي</th>
+                                    <th class="p-2.5 text-center">التفاصيل</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-archive-body" class="divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
         </div>
     </div>
 
-    <!-- Main Content -->
-    <main class="container mx-auto px-4 mt-8 flex-grow max-w-4xl">
-
-        <!-- SUBMIT SECTION -->
-        <section id="sec-submit" class="space-y-6">
-            <!-- Details Card -->
-            <div class="vintage-card p-6 rounded-lg">
-                <div class="flex justify-between items-center border-b-2 border-[#d5c8ab] pb-3 mb-4">
-                    <h2 class="text-xl font-bold vintage-font text-[#8c2d19] flex items-center gap-2">
-                        <i class="fa-solid fa-id-card"></i> بيانات المرشد والرحلة
-                    </h2>
-                    <span class="stamp-badge px-3 py-0.5 text-xs font-bold rounded">استمارة رسمية</span>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold mb-1.5 text-[#5c4a4a]">اسم المرشد السياحي</label>
-                        <input type="text" id="g-name" placeholder="أدخل الاسم الثلاثي" class="vintage-input w-full p-2.5 rounded text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold mb-1.5 text-[#5c4a4a]">رقم الرحلة / الكود</label>
-                        <input type="text" id="t-id" placeholder="مثال: LAE-101" class="vintage-input w-full p-2.5 rounded text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold mb-1.5 text-[#5c4a4a]">تاريخ الرحلة</label>
-                        <input type="date" id="t-date" class="vintage-input w-full p-2.5 rounded text-sm">
-                    </div>
-                </div>
+    <!-- SIDEBAR (Right side - as seen in the image) -->
+    <aside class="w-64 sidebar-bg text-white p-4 flex flex-col justify-between shrink-0 shadow-2xl">
+        <div class="space-y-6">
+            <!-- Sidebar Header -->
+            <div class="border-b border-slate-700 pb-3 text-center">
+                <h2 class="text-sm font-bold tracking-wide text-slate-200">قائمة النظام</h2>
             </div>
 
-            <!-- Incomes -->
-            <div class="vintage-card p-6 rounded-lg">
-                <div class="flex justify-between items-center border-b-2 border-[#d5c8ab] pb-3 mb-4">
-                    <h2 class="text-xl font-bold vintage-font text-[#2e5a36] flex items-center gap-2">
-                        <i class="fa-solid fa-[#2e5a36] fa-coins"></i> المقبوضات (الإيرادات)
-                    </h2>
-                    <button onclick="addInc()" class="vintage-btn-green text-xs px-3 py-1.5 rounded font-bold">+ إضافة بند</button>
-                </div>
-                <div id="inc-container" class="space-y-2.5"></div>
-                <div class="mt-5 pt-3 border-t-2 border-[#d5c8ab] flex justify-between font-bold text-sm text-[#2e5a36]">
-                    <span>إجمالي المقبوضات:</span>
-                    <span id="tot-inc" class="font-mono text-base">0 EGP</span>
-                </div>
-            </div>
-
-            <!-- Expenses -->
-            <div class="vintage-card p-6 rounded-lg">
-                <div class="flex justify-between items-center border-b-2 border-[#d5c8ab] pb-3 mb-4">
-                    <h2 class="text-xl font-bold vintage-font text-[#8c2d19] flex items-center gap-2">
-                        <i class="fa-solid fa-receipt"></i> المصروفات والتكاليف
-                    </h2>
-                    <button onclick="addExp()" class="vintage-btn-primary text-xs px-3 py-1.5 rounded font-bold">+ إضافة بند</button>
-                </div>
-                <div id="exp-container" class="space-y-2.5"></div>
-                <div class="mt-5 pt-3 border-t-2 border-[#d5c8ab] flex justify-between font-bold text-sm text-[#8c2d19]">
-                    <span>إجمالي المصروفات:</span>
-                    <span id="tot-exp" class="font-mono text-base">0 EGP</span>
-                </div>
-            </div>
-
-            <!-- Final Calculation Box -->
-            <div class="bg-[#3c2f2f] text-[#faf6ed] p-6 rounded-lg border-2 border-[#4a3b32] shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
-                <div>
-                    <div class="text-xs text-[#d4a359] font-bold">الصافي النهائي للتصفية:</div>
-                    <div id="net-txt" class="text-2xl font-bold vintage-font mt-1 text-[#f3e5ab]">0 EGP</div>
-                </div>
-                <button onclick="submitData()" class="vintage-btn-primary w-full md:w-auto px-8 py-3.5 rounded font-bold text-sm flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-paper-plane"></i> إرسال التصفية للشركة
+            <!-- Navigation Buttons -->
+            <nav class="space-y-2 text-xs">
+                <button onclick="switchTab('submit')" id="side-btn-submit" class="w-full text-right p-3 rounded font-bold sidebar-btn-active flex items-center gap-2">
+                    <i class="fa-solid fa-file-lines text-amber-300"></i> 1. نموذج التصفية
                 </button>
-            </div>
-        </section>
+                <button onclick="switchTab('review')" id="side-btn-review" class="w-full text-right p-3 rounded font-bold sidebar-btn-inactive flex items-center gap-2">
+                    <i class="fa-solid fa-lock text-slate-400"></i> 2. مراجعة الطلبات
+                    <span id="badge-pending" class="mr-auto bg-red-600 text-white px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
+                </button>
+                <button onclick="switchTab('archive')" id="side-btn-archive" class="w-full text-right p-3 rounded font-bold sidebar-btn-inactive flex items-center gap-2">
+                    <i class="fa-solid fa-lock text-slate-400"></i> 3. الأرشيف والبحث
+                </button>
+            </nav>
+        </div>
 
-        <!-- REVIEW SECTION -->
-        <section id="sec-review" class="hidden space-y-6">
-            <div id="rev-lock" class="vintage-card p-8 rounded-lg text-center max-w-sm mx-auto my-10">
-                <i class="fa-solid fa-key text-4xl text-[#8c2d19] mb-3"></i>
-                <h3 class="font-bold vintage-font text-xl mb-2 text-[#3c2f2f]">منطقة محمية للإدارة</h3>
-                <p class="text-xs text-[#5c4a4a] mb-4">يرجى إدخال كلمة المرور لمراجعة الطلبات المعلقة</p>
-                <input type="password" id="pin-rev" placeholder="كلمة المرور" class="vintage-input w-full p-2.5 rounded text-center mb-4 font-mono text-lg tracking-widest">
-                <button onclick="unlockRev()" class="vintage-btn-primary w-full py-2.5 rounded font-bold text-sm">دخول</button>
-            </div>
+        <div class="text-[10px] text-slate-400 text-center border-t border-slate-800 pt-3">
+            Look at Egypt Tours &copy; 2026
+        </div>
+    </aside>
 
-            <div id="rev-box" class="hidden space-y-4">
-                <div id="pending-list" class="space-y-4"></div>
-            </div>
-        </section>
-
-        <!-- ARCHIVE SECTION -->
-        <section id="sec-archive" class="hidden space-y-6">
-            <div id="arc-lock" class="vintage-card p-8 rounded-lg text-center max-w-sm mx-auto my-10">
-                <i class="fa-solid fa-vault text-4xl text-[#3c2f2f] mb-3"></i>
-                <h3 class="font-bold vintage-font text-xl mb-2 text-[#3c2f2f]">أرشيف التصفيات المعتمدة</h3>
-                <p class="text-xs text-[#5c4a4a] mb-4">أدخل كلمة المرور لاستعراض قاعدة البيانات المعتمدة</p>
-                <input type="password" id="pin-arc" placeholder="كلمة المرور" class="vintage-input w-full p-2.5 rounded text-center mb-4 font-mono text-lg tracking-widest">
-                <button onclick="unlockArc()" class="vintage-btn-primary w-full py-2.5 rounded font-bold text-sm">دخول</button>
-            </div>
-
-            <div id="arc-box" class="hidden space-y-4">
-                <div class="flex justify-between items-center vintage-card p-4 rounded-lg">
-                    <h3 class="font-bold vintage-font text-lg text-[#3c2f2f]">السجلات المعتمدة</h3>
-                    <button onclick="exportExcel()" class="vintage-btn-green text-xs px-3 py-2 rounded font-bold flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> تصدير Excel</button>
-                </div>
-                <div class="vintage-card rounded-lg overflow-x-auto">
-                    <table class="w-full text-sm text-right border-collapse">
-                        <thead class="bg-[#e2d5bd] border-b-2 border-[#4a3b32] text-xs text-[#3c2f2f]">
-                            <tr>
-                                <th class="p-3 font-bold">الكود</th>
-                                <th class="p-3 font-bold">المرشد</th>
-                                <th class="p-3 font-bold">الرحلة</th>
-                                <th class="p-3 font-bold">التاريخ</th>
-                                <th class="p-3 font-bold">الصافي</th>
-                                <th class="p-3 text-center font-bold">التفاصيل</th>
-                            </tr>
-                        </thead>
-                        <tbody id="arc-table"></tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- Modal -->
-    <div id="modal" class="fixed inset-0 bg-[#2b1f1d]/75 hidden flex items-center justify-center p-4 z-50">
-        <div class="vintage-card rounded-lg max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div id="modal-body"></div>
-            <div class="flex justify-end gap-2 border-t-2 border-[#d5c8ab] pt-4 no-print">
-                <button onclick="closeMod()" class="px-4 py-1.5 border border-[#4a3b32] rounded text-xs font-bold hover:bg-[#e2d5bd]">إغلاق</button>
-                <button onclick="window.print()" class="vintage-btn-primary px-4 py-1.5 rounded text-xs font-bold flex items-center gap-1"><i class="fa-solid fa-print"></i> طباعة</button>
+    <!-- Details Modal -->
+    <div id="modal-details" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
+        <div class="gold-card rounded-lg max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div id="modal-content"></div>
+            <div class="flex justify-end gap-2 border-t border-[#b89855] pt-3">
+                <button onclick="closeModal()" class="px-4 py-1.5 bg-gray-200 text-gray-800 rounded text-xs font-bold">إغلاق</button>
+                <button onclick="window.print()" class="px-4 py-1.5 bg-[#0d233a] text-white rounded text-xs font-bold"><i class="fa-solid fa-print ml-1"></i> طباعة</button>
             </div>
         </div>
     </div>
 
-    <!-- Firebase JS -->
+    <!-- Firebase JS (v8) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
+        // FIREBASE CONFIGURATION
         const firebaseConfig = {
             databaseURL: "https://tasfeya-3c84d-default-rtdb.firebaseio.com"
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        const PASS = "991997";
-        let store = [];
-
-        setInterval(() => {
-            document.getElementById('clock').innerText = new Date().toLocaleString('ar-EG');
-        }, 1000);
+        const AUTH_PIN = "991997";
+        let allOrders = [];
 
         window.onload = () => {
-            document.getElementById('t-date').valueAsDate = new Date();
-            addInc();
-            addExp();
-            syncDB();
+            recalc();
+            initRealtimeSync();
         };
 
-        function changeTab(t) {
-            ['submit', 'review', 'archive'].forEach(x => {
-                document.getElementById(`sec-${x}`).classList.add('hidden');
-                document.getElementById(`tab-${x}`).className = "py-3.5 px-6 font-bold text-[#5c4a4a] hover:text-[#2b1f1d] border-b-4 border-transparent flex items-center gap-2 whitespace-nowrap text-sm";
+        function switchTab(tab) {
+            document.getElementById('sec-submit').classList.add('hidden');
+            document.getElementById('sec-review').classList.add('hidden');
+            document.getElementById('sec-archive').classList.add('hidden');
+
+            ['submit', 'review', 'archive'].forEach(t => {
+                const btn = document.getElementById(`side-btn-${t}`);
+                btn.className = "w-full text-right p-3 rounded font-bold sidebar-btn-inactive flex items-center gap-2";
             });
-            document.getElementById(`sec-${t}`).classList.remove('hidden');
-            document.getElementById(`tab-${t}`).className = "py-3.5 px-6 font-bold text-[#8c2d19] border-b-4 border-[#8c2d19] flex items-center gap-2 whitespace-nowrap text-sm";
+
+            document.getElementById(`sec-${tab}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`side-btn-${tab}`);
+            activeBtn.className = "w-full text-right p-3 rounded font-bold sidebar-btn-active flex items-center gap-2";
         }
 
-        function addInc() {
-            const div = document.createElement('div');
-            div.className = "flex gap-2 items-center";
-            div.innerHTML = `
-                <input type="text" placeholder="بيان الإيراد" class="inc-d vintage-input flex-grow p-2 rounded text-xs">
-                <input type="number" placeholder="المبلغ" oninput="calc()" class="inc-v vintage-input w-28 p-2 rounded text-xs font-bold text-[#2e5a36]">
-                <button onclick="this.parentElement.remove(); calc();" class="text-[#8c2d19] hover:text-red-700 px-2 text-sm"><i class="fa-solid fa-trash-can"></i></button>
-            `;
-            document.getElementById('inc-container').appendChild(div);
+        function recalc() {
+            const ohda = Number(document.getElementById('val-ohda').value) || 0;
+            const lunch = Number(document.getElementById('val-[#8c6a1e]unch').value) || 0;
+            const tips = Number(document.getElementById('val-tips').value) || 0;
+            const parking = Number(document.getElementById('val-parking').value) || 0;
+            const fees = Number(document.getElementById('val-fees').value) || 0;
+
+            const totalExp = lunch + tips + parking + fees;
+            const net = ohda - totalExp;
+
+            document.getElementById('txt-total-exp').innerText = `${totalExp.toLocaleString()} EGP`;
+            document.getElementById('txt-net-result').innerText = `${net.toLocaleString()} EGP`;
+
+            return { ohda, lunch, tips, parking, fees, totalExp, net };
         }
 
-        function addExp() {
-            const div = document.createElement('div');
-            div.className = "flex gap-2 items-center";
-            div.innerHTML = `
-                <input type="text" placeholder="بيان المصروف" class="exp-d vintage-input flex-grow p-2 rounded text-xs">
-                <input type="number" placeholder="المبلغ" oninput="calc()" class="exp-v vintage-input w-28 p-2 rounded text-xs font-bold text-[#8c2d19]">
-                <button onclick="this.parentElement.remove(); calc();" class="text-[#8c2d19] hover:text-red-700 px-2 text-sm"><i class="fa-solid fa-trash-can"></i></button>
-            `;
-            document.getElementById('exp-container').appendChild(div);
-        }
+        function sendSettlement() {
+            const name = document.getElementById('guide-name').value.trim();
+            const code = document.getElementById('tour-code').value.trim();
 
-        function calc() {
-            let ti = 0, te = 0;
-            document.querySelectorAll('.inc-v').forEach(i => ti += Number(i.value) || 0);
-            document.querySelectorAll('.exp-v').forEach(e => te += Number(e.value) || 0);
-            const net = ti - te;
-
-            document.getElementById('tot-inc').innerText = `${ti.toLocaleString()} EGP`;
-            document.getElementById('tot-exp').innerText = `${te.toLocaleString()} EGP`;
-            document.getElementById('net-txt').innerText = `${net.toLocaleString()} EGP`;
-
-            return { ti, te, net };
-        }
-
-        function submitData() {
-            const g = document.getElementById('g-name').value.trim();
-            const t = document.getElementById('t-id').value.trim();
-            const d = document.getElementById('t-date').value;
-
-            if(!g || !t) {
-                alert('يرجى ملء اسم المرشد ورقم الرحلة');
+            if(!name || !code) {
+                alert('يرجى كتابة اسم المرشد ورقم الملف!');
                 return;
             }
 
-            const incs = [];
-            document.querySelectorAll('#inc-container > div').forEach(r => {
-                const desc = r.querySelector('.inc-d').value.trim();
-                const amount = Number(r.querySelector('.inc-v').value) || 0;
-                if(desc && amount) incs.push({ desc, amount });
-            });
+            const calcData = recalc();
+            const orderId = 'LAE-' + Date.now().toString().slice(-6);
 
-            const exps = [];
-            document.querySelectorAll('#exp-container > div').forEach(r => {
-                const desc = r.querySelector('.exp-d').value.trim();
-                const amount = Number(r.querySelector('.exp-v').value) || 0;
-                if(desc && amount) exps.push({ desc, amount });
-            });
-
-            const totals = calc();
-
-            const item = {
-                id: 'LAE-' + Math.floor(1000 + Math.random() * 9000),
-                guideName: g,
-                tourId: t,
-                tourDate: d,
-                incomes: incs,
-                expenses: exps,
-                totalIncome: totals.ti,
-                totalExpense: totals.te,
-                net: totals.net,
-                status: 'pending',
-                time: new Date().toISOString()
+            const payload = {
+                id: orderId,
+                guideName: name,
+                fileCode: code,
+                date: new Date().toLocaleDateString('ar-EG'),
+                ohda: calcData.ohda,
+                noteOhda: document.getElementById('note-ohda').value,
+                lunch: calcData.lunch,
+                noteLunch: document.getElementById('note-lunch').value,
+                tips: calcData.tips,
+                noteTips: document.getElementById('note-tips').value,
+                parking: calcData.parking,
+                noteParking: document.getElementById('note-parking').value,
+                fees: calcData.fees,
+                noteFees: document.getElementById('note-fees').value,
+                totalExp: calcData.totalExp,
+                net: calcData.net,
+                status: 'pending'
             };
 
-            db.ref('lae_settlements/' + item.id).set(item).then(() => {
-                alert('تم إرسال التصفية لشركة Look at Egypt بنجاح!');
-                document.getElementById('g-name').value = '';
-                document.getElementById('t-id').value = '';
-                document.getElementById('inc-container').innerHTML = '';
-                document.getElementById('exp-container').innerHTML = '';
-                addInc();
-                addExp();
-                calc();
+            db.ref('lae_orders/' + orderId).set(payload).then(() => {
+                alert('تم إرسال التصفية بنجاح لمراجعة الحسابات!');
+                document.getElementById('guide-name').value = '';
+                document.getElementById('tour-code').value = '';
+                document.querySelectorAll('table input').forEach(input => {
+                    if(input.type === 'number') input.value = 0;
+                    else input.value = '';
+                });
+                recalc();
             });
         }
 
-        function syncDB() {
-            db.ref('lae_settlements').on('value', snap => {
-                const val = snap.val();
-                store = val ? Object.values(val) : [];
+        function initRealtimeSync() {
+            db.ref('lae_orders').on('value', snapshot => {
+                const data = snapshot.val();
+                allOrders = data ? Object.values(data) : [];
 
-                const pend = store.filter(x => x.status === 'pending');
-                const b = document.getElementById('badge');
-                if(pend.length > 0) {
-                    b.innerText = pend.length;
-                    b.classList.remove('hidden');
+                const pendingList = allOrders.filter(x => x.status === 'pending');
+                const badge = document.getElementById('badge-pending');
+                if(pendingList.length > 0) {
+                    badge.innerText = pendingList.length;
+                    badge.classList.remove('hidden');
                 } else {
-                    b.classList.add('hidden');
+                    badge.classList.add('hidden');
                 }
 
-                renderRev();
-                renderArc();
+                renderPendingCards();
+                renderArchiveTable();
             });
         }
 
-        function unlockRev() {
-            if(document.getElementById('pin-rev').value === PASS) {
-                document.getElementById('rev-lock').classList.add('hidden');
-                document.getElementById('rev-box').classList.remove('hidden');
-                renderRev();
-            } else { alert('كلمة المرور خاطئة'); }
+        function verifyPin(type) {
+            const pinInput = document.getElementById(`input-pin-${type}`).value;
+            if(pinInput === AUTH_PIN) {
+                document.getElementById(`pin-screen-${type}`).classList.add('hidden');
+                document.getElementById(`panel-${type}`).classList.remove('hidden');
+            } else {
+                alert('كلمة المرور غير صحيحة');
+            }
         }
 
-        function unlockArc() {
-            if(document.getElementById('pin-arc').value === PASS) {
-                document.getElementById('arc-lock').classList.add('hidden');
-                document.getElementById('arc-box').classList.remove('hidden');
-                renderArc();
-            } else { alert('كلمة المرور خاطئة'); }
-        }
+        function renderPendingCards() {
+            const container = document.getElementById('cards-pending');
+            if(!container) return;
+            container.innerHTML = '';
 
-        function renderRev() {
-            const list = document.getElementById('pending-list');
-            if(!list) return;
-            list.innerHTML = '';
-
-            const pends = store.filter(x => x.status === 'pending');
-
+            const pends = allOrders.filter(x => x.status === 'pending');
             if(pends.length === 0) {
-                list.innerHTML = '<div class="vintage-card p-6 text-center text-xs text-[#5c4a4a]">لا توجد طلبات معلقة حالياً</div>';
+                container.innerHTML = '<div class="gold-card p-4 text-center text-xs text-gray-500">لا توجد طلبات معلقة بانتظار المراجعة</div>';
                 return;
             }
 
             pends.forEach(item => {
-                const card = document.createElement('div');
-                card.className = "vintage-card p-4 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4";
-                card.innerHTML = `
+                const div = document.createElement('div');
+                div.className = "gold-card p-4 rounded flex justify-between items-center text-xs";
+                div.innerHTML = `
                     <div>
-                        <div class="font-bold text-sm text-[#2b1f1d]">${item.guideName} <span class="text-xs text-[#8c2d19] font-mono">(${item.tourId})</span></div>
-                        <div class="text-xs text-[#5c4a4a] mt-1">التاريخ: ${item.tourDate} | الكود: <span class="font-mono">${item.id}</span></div>
-                        <div class="text-xs font-bold mt-1 text-[#2e5a36]">الصافي: ${item.net.toLocaleString()} EGP</div>
+                        <div class="font-bold text-[#0d233a]">${item.guideName} <span class="text-[#8c6a1e]">(${item.fileCode})</span></div>
+                        <div class="text-gray-500 mt-1">العهدة: ${item.ohda} EGP | المصروفات: ${item.totalExp} EGP | الصافي: <b class="text-[#0d233a]">${item.net} EGP</b></div>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="showDetails('${item.id}')" class="px-3 py-1.5 bg-[#e2d5bd] border border-[#4a3b32] text-xs font-bold rounded hover:bg-[#d5c8ab]">معاينة</button>
-                        <button onclick="approve('${item.id}')" class="vintage-btn-green px-3 py-1.5 text-xs font-bold rounded">اعتماد</button>
+                        <button onclick="viewDetails('${item.id}')" class="px-3 py-1 bg-gray-200 border rounded font-bold">معاينة</button>
+                        <button onclick="approveOrder('${item.id}')" class="px-3 py-1 bg-emerald-700 text-white rounded font-bold">اعتماد</button>
                     </div>
                 `;
-                list.appendChild(card);
+                container.appendChild(div);
             });
         }
 
-        function renderArc() {
-            const tbody = document.getElementById('arc-table');
+        function renderArchiveTable() {
+            const tbody = document.getElementById('table-archive-body');
             if(!tbody) return;
             tbody.innerHTML = '';
 
-            const apped = store.filter(x => x.status === 'approved');
-
-            apped.forEach(item => {
+            const approved = allOrders.filter(x => x.status === 'approved');
+            approved.forEach(item => {
                 const tr = document.createElement('tr');
-                tr.className = "border-b border-[#d5c8ab] hover:bg-[#f4eee1]";
                 tr.innerHTML = `
-                    <td class="p-3 text-xs font-bold font-mono">${item.id}</td>
-                    <td class="p-3 text-xs">${item.guideName}</td>
-                    <td class="p-3 text-xs">${item.tourId}</td>
-                    <td class="p-3 text-xs">${item.tourDate}</td>
-                    <td class="p-3 text-xs font-bold text-[#2e5a36] font-mono">${item.net.toLocaleString()} EGP</td>
-                    <td class="p-3 text-center">
-                        <button onclick="showDetails('${item.id}')" class="bg-[#e2d5bd] border border-[#4a3b32] px-2.5 py-1 text-xs font-bold rounded hover:bg-[#d5c8ab]">عرض</button>
+                    <td class="p-2.5 font-bold">${item.id}</td>
+                    <td class="p-2.5">${item.guideName}</td>
+                    <td class="p-2.5">${item.fileCode}</td>
+                    <td class="p-2.5 font-mono text-emerald-700">${item.ohda.toLocaleString()}</td>
+                    <td class="p-2.5 font-mono text-rose-700">${item.totalExp.toLocaleString()}</td>
+                    <td class="p-2.5 font-mono font-bold">${item.net.toLocaleString()} EGP</td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="viewDetails('${item.id}')" class="bg-gray-100 border border-gray-300 px-2 py-0.5 rounded font-bold text-[11px]">عرض</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function approve(id) {
-            if(confirm('اعتماد هذه التصفية وتحويلها للأرشيف؟')) {
-                db.ref('lae_settlements/' + id + '/status').set('approved');
+        function approveOrder(id) {
+            if(confirm('هل تريد اعتماد تصفية هذا الملف ونقلها للأرشيف؟')) {
+                db.ref('lae_orders/' + id + '/status').set('approved');
             }
         }
 
-        function showDetails(id) {
-            const item = store.find(x => x.id === id);
+        function viewDetails(id) {
+            const item = allOrders.find(x => x.id === id);
             if(!item) return;
 
-            document.getElementById('modal-body').innerHTML = `
-                <div class="text-center border-b-2 border-[#4a3b32] pb-3">
-                    <h2 class="text-2xl font-bold vintage-font text-[#3c2f2f]">Look at Egypt Tours</h2>
-                    <p class="text-xs text-[#8c2d19] font-bold mt-1">تقرير تصفية رحلة سياحية (${item.id})</p>
+            document.getElementById('modal-content').innerHTML = `
+                <div class="text-center border-b border-[#b89855] pb-3">
+                    <h2 class="text-lg font-bold text-[#0d233a]">LOOK AT EGYPT TOURS</h2>
+                    <p class="text-xs text-[#8c6a1e] font-bold">استمارة تصفية واستحقاق - ${item.id}</p>
                 </div>
-                <div class="grid grid-cols-2 gap-2 text-xs bg-[#e2d5bd] p-3 rounded border border-[#4a3b32]">
-                    <div><b>المرشد:</b> ${item.guideName}</div>
-                    <div><b>رقم الرحلة:</b> ${item.tourId}</div>
-                    <div><b>التاريخ:</b> ${item.tourDate}</div>
-                    <div><b>الحالة:</b> ${item.status === 'approved' ? '<span class="text-[#2e5a36] font-bold">معتمدة</span>' : '<span class="text-[#8c2d19] font-bold">معلقة</span>'}</div>
+                <div class="grid grid-cols-2 gap-2 text-xs bg-[#f3ebd9] p-3 rounded border border-[#b89855] my-3">
+                    <div><b>اسم المرشد:</b> ${item.guideName}</div>
+                    <div><b>رقم الملف:</b> ${item.fileCode}</div>
+                    <div><b>التاريخ:</b> ${item.date}</div>
+                    <div><b>الحالة:</b> ${item.status === 'approved' ? '<b class="text-emerald-700">معتمدة</b>' : '<b class="text-red-600">معلقة</b>'}</div>
                 </div>
-                <div class="space-y-3 text-xs">
-                    <div>
-                        <h4 class="font-bold text-[#2e5a36] mb-1">المقبوضات:</h4>
-                        <div class="border border-[#4a3b32] rounded p-2 bg-[#faf6ed]">
-                            ${(item.incomes || []).map(i => `<div class="flex justify-between border-b border-[#d5c8ab] py-1"><span>${i.desc}</span><b class="font-mono">${i.amount.toLocaleString()} EGP</b></div>`).join('')}
-                        </div>
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-[#8c2d19] mb-1">المصروفات:</h4>
-                        <div class="border border-[#4a3b32] rounded p-2 bg-[#faf6ed]">
-                            ${(item.expenses || []).map(e => `<div class="flex justify-between border-b border-[#d5c8ab] py-1"><span>${e.desc}</span><b class="font-mono">${e.amount.toLocaleString()} EGP</b></div>`).join('')}
-                        </div>
-                    </div>
-                </div>
-                <div class="flex justify-between items-center text-sm font-bold border-t-2 border-[#4a3b32] pt-2 mt-2">
-                    <span>الصافي النهائي:</span>
-                    <span class="text-[#2e5a36] font-mono text-base">${item.net.toLocaleString()} EGP</span>
+                <table class="w-full text-xs text-right border">
+                    <tr class="bg-gray-100 border-b"><th class="p-2">البيان</th><th class="p-2">المبلغ</th><th class="p-2">ملاحظات</th></tr>
+                    <tr class="border-b"><td class="p-1.5">العهدة المستلمة</td><td class="p-1.5 font-bold text-emerald-700">${item.ohda}</td><td class="p-1.5 text-gray-500">${item.noteOhda || '-'}</td></tr>
+                    <tr class="border-b"><td class="p-1.5">مصاريف الغداء</td><td class="p-1.5 font-bold text-rose-700">${item.lunch}</td><td class="p-1.5 text-gray-500">${item.noteLunch || '-'}</td></tr>
+                    <tr class="border-b"><td class="p-1.5">الإكراميات</td><td class="p-1.5 font-bold text-rose-700">${item.tips}</td><td class="p-1.5 text-gray-500">${item.noteTips || '-'}</td></tr>
+                    <tr class="border-b"><td class="p-1.5">الباركينج والرسوم</td><td class="p-1.5 font-bold text-rose-700">${item.parking}</td><td class="p-1.5 text-gray-500">${item.noteParking || '-'}</td></tr>
+                    <tr class="border-b"><td class="p-1.5">أتعاب المرشد</td><td class="p-1.5 font-bold text-rose-700">${item.fees}</td><td class="p-1.5 text-gray-500">${item.noteFees || '-'}</td></tr>
+                </table>
+                <div class="flex justify-between items-center text-xs font-bold pt-2 border-t border-[#b89855] mt-2">
+                    <span>إجمالي المصروفات: ${item.totalExp.toLocaleString()} EGP</span>
+                    <span class="text-[#0d233a] text-sm">الصافي: ${item.net.toLocaleString()} EGP</span>
                 </div>
             `;
-            document.getElementById('modal').classList.remove('hidden');
+            document.getElementById('modal-details').classList.remove('hidden');
         }
 
-        function closeMod() {
-            document.getElementById('modal').classList.add('hidden');
+        function closeModal() {
+            document.getElementById('modal-details').classList.add('hidden');
         }
 
         function exportExcel() {
-            const apped = store.filter(x => x.status === 'approved');
-            const ws = XLSX.utils.json_to_sheet(apped);
+            const approved = allOrders.filter(x => x.status === 'approved');
+            const ws = XLSX.utils.json_to_sheet(approved);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "التصفيات المعتمدة");
-            XLSX.writeFile(wb, "تصفيات_Look_at_Egypt.xlsx");
+            XLSX.utils.book_append_sheet(wb, ws, "التصفيات_المعتمدة");
+            XLSX.writeFile(wb, "Look_At_Egypt_Settlements.xlsx");
         }
     </script>
 </body>
