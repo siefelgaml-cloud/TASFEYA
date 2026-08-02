@@ -323,7 +323,7 @@
                     <div id="shopsContainer"></div>
                 </div>
 
-                <!-- التعديلات الجديدة في الرحلات الاختيارية -->
+                <!-- قسم الرحلات الاختيارية المحدث بدو خانة عمولة المرشد -->
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:10px;">
                         <h3 style="margin:0;">الرحلات الاختيارية (Optional Tours)</h3>
@@ -667,14 +667,6 @@
                     <label>إجمالي التكلفة (EGP):</label>
                     <div class="comm-result-box opt-total-cost-egp">0.00 EGP</div>
                 </div>
-                <div class="form-group">
-                    <label>نسبة المرشد %:</label>
-                    <input type="number" value="20" class="opt-guide-pct" oninput="calculateAll()">
-                </div>
-                <div class="form-group">
-                    <label>عمولة المرشد (EGP):</label>
-                    <div class="comm-result-box opt-guide-comm-val">0.00 EGP</div>
-                </div>
             </div>
         `;
         container.appendChild(optCard);
@@ -682,13 +674,10 @@
     }
 
     function calculateAll() {
-        let totalOptComm = 0;
-
         document.querySelectorAll('.opt-card-item').forEach(card => {
             const pax = parseFloat(card.querySelector('.opt-pax').value) || 0;
             const priceUsd = parseFloat(card.querySelector('.opt-price-usd').value) || 0;
             const costEgp = parseFloat(card.querySelector('.opt-cost-egp').value) || 0;
-            const guidePct = (parseFloat(card.querySelector('.opt-guide-pct').value) || 0) / 100;
 
             // 1. حساب إجمالي البيع بالدولار = عدد الأفراد * سعر البيع للفرد
             const totalUsd = pax * priceUsd;
@@ -697,12 +686,6 @@
             // 2. حساب إجمالي التكلفة بالجنيه المصري = عدد الأفراد * تكلفة الفرد
             const totalCostEgp = pax * costEgp;
             card.querySelector('.opt-total-cost-egp').innerText = totalCostEgp.toFixed(2) + ' EGP';
-
-            // 3. حساب عمولة المرشد بالجنيه (مبنية على نسبة المستحق)
-            const guideComm = totalCostEgp > 0 ? (totalCostEgp * guidePct) : 0;
-            card.querySelector('.opt-guide-comm-val').innerText = guideComm.toFixed(2) + ' EGP';
-            
-            totalOptComm += guideComm;
         });
 
         const floatVal = parseFloat(document.getElementById('floatEgp').value) || 0;
@@ -711,7 +694,7 @@
         const parking = parseFloat(document.getElementById('parkingEgp').value) || 0;
         const fee = parseFloat(document.getElementById('feeEgp').value) || 0;
 
-        const totalDue = floatVal + totalOptComm;
+        const totalDue = floatVal;
         const totalExp = lunch + tips + parking + fee;
         const net = totalDue - totalExp;
 
@@ -770,9 +753,7 @@
                 priceUsd: card.querySelector('.opt-price-usd').value,
                 totalUsd: card.querySelector('.opt-total-usd').innerText,
                 costEgp: card.querySelector('.opt-cost-egp').value,
-                totalCostEgp: card.querySelector('.opt-total-cost-egp').innerText,
-                guidePct: card.querySelector('.opt-guide-pct').value,
-                comm: card.querySelector('.opt-guide-comm-val').innerText
+                totalCostEgp: card.querySelector('.opt-total-cost-egp').innerText
             });
         });
 
@@ -920,7 +901,7 @@
         if (item.optionals && item.optionals.length > 0) {
             html += `<hr style="border-color: var(--border-vintage);"><h4>الرحلات الاختيارية:</h4><ul>`;
             item.optionals.forEach(o => {
-                html += `<li><b>${o.name || 'رحلة'}</b>: ${o.pax} أفراد | سعر البيع للفرد: ${o.priceUsd} $ (الإجمالي: ${o.totalUsd}) | التكلفة للفرد: ${o.costEgp} EGP (إجمالي التكلفة: ${o.totalCostEgp}) | عمولة المرشد: ${o.comm}</li>`;
+                html += `<li><b>${o.name || 'رحلة'}</b>: ${o.pax} أفراد | سعر البيع للفرد: ${o.priceUsd} $ (الإجمالي: ${o.totalUsd}) | التكلفة للفرد: ${o.costEgp} EGP (إجمالي التكلفة: ${o.totalCostEgp})</li>`;
             });
             html += `</ul>`;
         }
