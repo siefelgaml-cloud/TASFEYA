@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تصفية رحلات سياحية - Vintage System</title>
+    <title>تصفية رحلات سياحية - Look at Egypt</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts (Amiri & Cairo for Vintage Look) -->
+    <!-- Google Fonts (Amiri & Cairo) -->
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <!-- SheetJS for Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -64,10 +64,10 @@
     <header class="bg-[#3c2f2f] text-[#fdfbf7] p-5 shadow-lg border-b-4 border-[#8c2d19] no-print">
         <div class="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
-                <i class="fa-solid fa-compass text-[#d4a359] text-3xl"></i>
+                <i class="fa-solid fa-pyramid-monument text-[#d4a359] text-3xl"></i>
                 <div>
-                    <h1 class="text-2xl font-bold vintage-font tracking-wide">شركة بوب إيجبشن ترافيل</h1>
-                    <p class="text-xs text-[#d4a359] tracking-wider">بوب تورز - Bob Tours (نظام تصفيات الرحلات)</p>
+                    <h1 class="text-2xl font-bold vintage-font tracking-wide">Look at Egypt Tours</h1>
+                    <p class="text-xs text-[#d4a359] tracking-wider">شركة لوك ات إيجيبت (نظام تصفيات ومراجعة الرحلات)</p>
                 </div>
             </div>
             <div id="clock" class="text-xs bg-[#2b1e1e] text-[#d4a359] px-4 py-1.5 rounded border border-[#5c4a4a] font-mono"></div>
@@ -81,7 +81,7 @@
                 <i class="fa-solid fa-pen-nib"></i> 1. تقديم تصفية
             </button>
             <button onclick="changeTab('review')" id="tab-review" class="py-3 px-6 font-bold text-[#5c4a4a] hover:text-[#3c2f2f] border-b-4 border-transparent flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-[#3c2f2f] fa-stamp"></i> 2. مراجعة الإدارة
+                <i class="fa-solid fa-stamp"></i> 2. مراجعة الإدارة
                 <span id="badge" class="bg-[#8c2d19] text-[#fdfbf7] text-xs px-2 py-0.5 rounded-full hidden">0</span>
             </button>
             <button onclick="changeTab('archive')" id="tab-archive" class="py-3 px-6 font-bold text-[#5c4a4a] hover:text-[#3c2f2f] border-b-4 border-transparent flex items-center gap-2 whitespace-nowrap">
@@ -97,7 +97,7 @@
         <section id="sec-submit" class="space-y-6">
             <div class="vintage-card p-6 rounded-lg">
                 <h2 class="text-lg font-bold vintage-font text-[#8c2d19] border-b-2 border-[#e2d7c5] pb-2 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-[#3c2f2f] fa-id-card"></i> بيانات المرشد والرحلة
+                    <i class="fa-solid fa-id-card"></i> بيانات المرشد والرحلة
                 </h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
@@ -105,8 +105,8 @@
                         <input type="text" id="g-name" placeholder="أدخل الاسم" class="vintage-input w-full p-2.5 rounded text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold mb-1 text-[#5c4a4a]">رقم الرحلة / المجموعة</label>
-                        <input type="text" id="t-id" placeholder="مثال: Tour-101" class="vintage-input w-full p-2.5 rounded text-sm">
+                        <label class="block text-xs font-bold mb-1 text-[#5c4a4a]">رقم الرحلة / الكود</label>
+                        <input type="text" id="t-id" placeholder="مثال: LAE-101" class="vintage-input w-full p-2.5 rounded text-sm">
                     </div>
                     <div>
                         <label class="block text-xs font-bold mb-1 text-[#5c4a4a]">تاريخ الرحلة</label>
@@ -308,7 +308,7 @@
             const totals = calc();
 
             const item = {
-                id: 'BOB-' + Math.floor(1000 + Math.random() * 9000),
+                id: 'LAE-' + Math.floor(1000 + Math.random() * 9000),
                 guideName: g,
                 tourId: t,
                 tourDate: d,
@@ -321,8 +321,8 @@
                 time: new Date().toISOString()
             };
 
-            db.ref('bob_settlements/' + item.id).set(item).then(() => {
-                alert('تم إرسال التصفية لشركة بوب إيجبشن ترافيل بنجاح!');
+            db.ref('lae_settlements/' + item.id).set(item).then(() => {
+                alert('تم إرسال التصفية لشركة Look at Egypt بنجاح!');
                 document.getElementById('g-name').value = '';
                 document.getElementById('t-id').value = '';
                 document.getElementById('inc-container').innerHTML = '';
@@ -334,7 +334,7 @@
         }
 
         function syncDB() {
-            db.ref('bob_settlements').on('value', snap => {
+            db.ref('lae_settlements').on('value', snap => {
                 const val = snap.val();
                 store = val ? Object.values(val) : [];
 
@@ -424,7 +424,7 @@
 
         function approve(id) {
             if(confirm('اعتماد هذه التصفية وتحويلها للأرشيف؟')) {
-                db.ref('bob_settlements/' + id + '/status').set('approved');
+                db.ref('lae_settlements/' + id + '/status').set('approved');
             }
         }
 
@@ -434,7 +434,7 @@
 
             document.getElementById('modal-body').innerHTML = `
                 <div class="text-center border-b-2 border-[#3c2f2f] pb-3">
-                    <h2 class="text-xl font-bold vintage-font">شركة بوب إيجبشن ترافيل</h2>
+                    <h2 class="text-xl font-bold vintage-font">Look at Egypt Tours</h2>
                     <p class="text-xs text-[#8c2d19]">تقرير تصفية رحلة سياحية (${item.id})</p>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-xs bg-[#e8dfd1] p-3 rounded border border-[#3c2f2f]">
@@ -470,7 +470,7 @@
             const ws = XLSX.utils.json_to_sheet(apped);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "التصفيات المعتمدة");
-            XLSX.writeFile(wb, "تصفيات_بوب_ترافيل.xlsx");
+            XLSX.writeFile(wb, "تصفيات_Look_at_Egypt.xlsx");
         }
     </script>
 </body>
