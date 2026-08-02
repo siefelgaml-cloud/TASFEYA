@@ -455,7 +455,7 @@
         <button class="modal-close no-print" onclick="closeModal()">×</button>
         <div id="pdfExportArea">
             <h2 style="color: var(--primary-navy); border-bottom: 2px solid var(--vintage-gold); padding-bottom: 8px; margin-top:0;">
-                تفاصيل تصفية حساب مرشد
+                تقرير تصفية واستحقاق حساب مرشد
             </h2>
             <div id="modalContent"></div>
         </div>
@@ -471,7 +471,6 @@
     const SECRET_PIN = "991997";
     const STORAGE_KEY = "tafseya_app_permanent_db";
 
-    // تم تحديث رابط قاعدة بيانات Firebase الخاصة بك هنا بنجاح
     const firebaseConfig = {
         databaseURL: "https://tasfeya-40a8b-default-rtdb.europe-west1.firebasedatabase.app/"
     };
@@ -883,48 +882,161 @@
         currentModalFileNo = item.fileNo || "Settlement";
 
         let html = `
-            <p><b>اسم المرشد:</b> ${item.guideName} | <b>رقم الملف:</b> ${item.fileNo} | <b>التاريخ:</b> ${item.date}</p>
-            <hr style="border-color: var(--border-vintage);">
-            <h4>العهدة والمصروفات:</h4>
-            <ul>
-                <li>العهدة المستلمة: ${item.floatEgp} EGP (${item.floatNotes || 'لا توجد ملاحظات'})</li>
-                <li>مصاريف الغداء: ${item.lunchEgp} EGP (${item.lunchNotes || 'لا توجد ملاحظات'})</li>
-                <li>الإكراميات: ${item.tipsEgp} EGP (${item.tipsNotes || 'لا توجد ملاحظات'})</li>
-                <li>الباركينج: ${item.parkingEgp} EGP (${item.parkingNotes || 'لا توجد ملاحظات'})</li>
-                <li>أتعاب المرشد: ${item.feeEgp} EGP (${item.feeNotes || 'لا توجد ملاحظات'})</li>
-            </ul>
+            <div style="background-color: var(--vintage-card); border: 1px solid var(--border-vintage); padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                <table style="width: 100%; min-width: auto; margin-top:0;">
+                    <tr>
+                        <td style="width: 33%;"><b>اسم المرشد:</b> ${item.guideName}</td>
+                        <td style="width: 33%;"><b>رقم الملف:</b> ${item.fileNo}</td>
+                        <td style="width: 34%;"><b>التاريخ:</b> ${item.date}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <h3 style="color: var(--primary-navy); border-bottom: 2px double var(--vintage-gold); padding-bottom: 6px; font-size:1.15em; margin-top: 15px;">
+                العهدة والمصروفات المباشرة (EGP)
+            </h3>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">البيان</th>
+                            <th style="width: 30%;">المبلغ (بالجنيه المصري)</th>
+                            <th style="width: 40%;">ملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><b>العهدة المستلمة</b></td>
+                            <td>${(parseFloat(item.floatEgp) || 0).toFixed(2)} EGP</td>
+                            <td>${item.floatNotes || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td>مصاريف الغداء</td>
+                            <td>${(parseFloat(item.lunchEgp) || 0).toFixed(2)} EGP</td>
+                            <td>${item.lunchNotes || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td>الإكراميات (Tips)</td>
+                            <td>${(parseFloat(item.tipsEgp) || 0).toFixed(2)} EGP</td>
+                            <td>${item.tipsNotes || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td>الباركينج والرسوم</td>
+                            <td>${(parseFloat(item.parkingEgp) || 0).toFixed(2)} EGP</td>
+                            <td>${item.parkingNotes || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td>أتعاب المرشد (اليومية)</td>
+                            <td>${(parseFloat(item.feeEgp) || 0).toFixed(2)} EGP</td>
+                            <td>${item.feeNotes || '-'}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         `;
 
         if (item.optionals && item.optionals.length > 0) {
-            html += `<hr style="border-color: var(--border-vintage);"><h4>الرحلات الاختيارية:</h4><ul>`;
+            html += `
+                <h3 style="color: var(--primary-navy); border-bottom: 2px double var(--vintage-gold); padding-bottom: 6px; font-size:1.15em; margin-top: 25px;">
+                    الرحلات الاختيارية (Optional Tours)
+                </h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>اسم الرحلة</th>
+                                <th>عدد الأفراد</th>
+                                <th>سعر البيع ($)</th>
+                                <th>إجمالي البيع ($)</th>
+                                <th>نسبة العمولة</th>
+                                <th>تكلفة الفرد (EGP)</th>
+                                <th>إجمالي التكلفة (EGP)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
             item.optionals.forEach(o => {
-                html += `<li><b>${o.name || 'رحلة'}</b>: ${o.pax} أفراد | سعر البيع: ${o.priceUsd} $ (الإجمالي: ${o.totalUsd}) | نسبة العمولة: ${o.commRate || 30}% | التكلفة بالفرد: ${o.costEgp} EGP (إجمالي التكلفة: ${o.totalCostEgp})</li>`;
+                html += `
+                    <tr>
+                        <td><b>${o.name || '-'}</b></td>
+                        <td>${o.pax || 0}</td>
+                        <td>${o.priceUsd || 0} $</td>
+                        <td>${o.totalUsd || '0.00 $'}</td>
+                        <td>${o.commRate || 30}%</td>
+                        <td>${o.costEgp || 0} EGP</td>
+                        <td>${o.totalCostEgp || '0.00 EGP'}</td>
+                    </tr>
+                `;
             });
-            html += `</ul>`;
+            html += `</tbody></table></div>`;
         }
 
         if (item.shops && item.shops.length > 0) {
-            html += `<hr style="border-color: var(--border-vintage);"><h4>مبيعات المحلات:</h4><ul>`;
-            item.shops.forEach(s => {
-                html += `<li>${s.name || 'محل'}: ${s.sales} ${s.curr}</li>`;
+            html += `
+                <h3 style="color: var(--primary-navy); border-bottom: 2px double var(--vintage-gold); padding-bottom: 6px; font-size:1.15em; margin-top: 25px;">
+                    مبيعات المحلات (Shops)
+                </h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>اسم المحل</th>
+                                <th>إجمالي المبيعات</th>
+                                <th>العملة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            item.shops.forEach((s, idx) => {
+                html += `
+                    <tr>
+                        <td>${idx + 1}</td>
+                        <td><b>${s.name || '-'}</b></td>
+                        <td>${s.sales || 0}</td>
+                        <td>${s.curr || 'EGP'}</td>
+                    </tr>
+                `;
             });
-            html += `</ul>`;
+            html += `</tbody></table></div>`;
         }
 
+        html += `
+            <h3 style="color: var(--primary-navy); border-bottom: 2px double var(--vintage-gold); padding-bottom: 6px; font-size:1.15em; margin-top: 25px;">
+                صافي التصفية النهائي (EGP)
+            </h3>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>إجمالي ما بذمة المرشد</th>
+                            <th>إجمالي المصروفات والأتعاب</th>
+                            <th>الصافي النهائي</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><b>${item.totalDue}</b></td>
+                            <td><b>${item.totalExp}</b></td>
+                            <td><b class="positive">${item.netAmount}</b></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+
         if (item.attachments && item.attachments.length > 0) {
-            html += `<hr style="border-color: var(--border-vintage);"><h4>🖼️ المرفقات والفواتير المصورة:</h4><div style="display:flex; gap:10px; flex-wrap:wrap;">`;
+            html += `
+                <h3 style="color: var(--primary-navy); border-bottom: 2px double var(--vintage-gold); padding-bottom: 6px; font-size:1.15em; margin-top: 25px;">
+                    🖼️ المرفقات والفواتير المصورة
+                </h3>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+            `;
             item.attachments.forEach(imgBase64 => {
                 html += `<div style="width:100px; height:100px; border:1px solid var(--border-vintage); border-radius:4px; overflow:hidden;"><img src="${imgBase64}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="window.open('${imgBase64}', '_blank')"></div>`;
             });
             html += `</div>`;
         }
-
-        html += `
-            <hr style="border-color: var(--border-vintage);">
-            <h4>الإجماليات والصافي:</h4>
-            <p><b>ما بذمة المرشد:</b> ${item.totalDue} | <b>المصروفات:</b> ${item.totalExp}</p>
-            <p style="font-size: 1.2em;"><b>الصافي النهائي:</b> <span class="positive">${item.netAmount}</span></p>
-        `;
 
         document.getElementById('modalContent').innerHTML = html;
         document.getElementById('detailsModal').classList.add('active');
