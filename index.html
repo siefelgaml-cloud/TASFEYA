@@ -134,7 +134,7 @@
 
         .vertical-item-card { border: 1px solid var(--border-vintage); background-color: #fcf9f2; border-radius: 4px; padding: 18px; margin-top: 15px; }
         .vertical-card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-vintage); padding-bottom: 10px; margin-bottom: 15px; }
-        .vertical-grid-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end; }
+        .vertical-grid-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; align-items: end; }
 
         .comm-result-box { background-color: #e8dbca; border: 1px solid var(--vintage-gold-dark); padding: 8px 12px; border-radius: 3px; text-align: center; font-weight: bold; color: var(--primary-navy); height: 40px; display: flex; align-items: center; justify-content: center; }
 
@@ -167,7 +167,6 @@
             align-items: center; flex-wrap: wrap;
         }
 
-        /* تنسيق منطقة رفع ومعاينة المرفقات */
         .attachments-preview-container {
             display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;
         }
@@ -192,7 +191,7 @@
         .modal-overlay.active { display: flex; }
         .modal-card {
             background: var(--vintage-card); border: 3px double var(--vintage-gold-dark);
-            border-radius: 6px; width: 100%; max-width: 800px; max-height: 90vh;
+            border-radius: 6px; width: 100%; max-width: 850px; max-height: 90vh;
             overflow-y: auto; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             position: relative; box-sizing: border-box;
         }
@@ -324,6 +323,7 @@
                     <div id="shopsContainer"></div>
                 </div>
 
+                <!-- التعديلات الجديدة في الرحلات الاختيارية -->
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:10px;">
                         <h3 style="margin:0;">الرحلات الاختيارية (Optional Tours)</h3>
@@ -332,7 +332,6 @@
                     <div id="optionalContainer"></div>
                 </div>
 
-                <!-- قسم إرفاق الفواتير والملفات الجديد -->
                 <div class="card">
                     <h3>📎 إرفاق الفواتير والصور الإيضاحية</h3>
                     <div class="form-group">
@@ -497,7 +496,7 @@
     };
     
     let currentModalFileNo = "Settlement";
-    let attachedFilesBase64 = []; // لتخزين الصور المحولة كـ Base64
+    let attachedFilesBase64 = [];
 
     function initRealtimeSync() {
         if (db) {
@@ -569,7 +568,6 @@
         if (tabId === 'tab-archive') renderArchiveTable();
     }
 
-    /* معالجة وتحويل المرفقات والصور */
     function handleFileSelect(event) {
         const files = event.target.files;
         if (!files || files.length === 0) return;
@@ -647,27 +645,35 @@
             <div class="vertical-grid-fields">
                 <div class="form-group">
                     <label>اسم الرحلة:</label>
-                    <input type="text" class="opt-name">
+                    <input type="text" class="opt-name" placeholder="اسم الرحلة...">
                 </div>
                 <div class="form-group">
                     <label>عدد الأفراد:</label>
-                    <input type="number" value="1" class="opt-pax" oninput="calculateAll()">
+                    <input type="number" value="1" min="1" class="opt-pax" oninput="calculateAll()">
                 </div>
                 <div class="form-group">
-                    <label>السعر للفرد:</label>
-                    <input type="number" value="0" class="opt-price" oninput="calculateAll()">
+                    <label>سعر البيع للفرد ($):</label>
+                    <input type="number" value="0" step="any" class="opt-price-usd" oninput="calculateAll()">
                 </div>
                 <div class="form-group">
-                    <label>التكلفة المباشرة:</label>
-                    <input type="number" value="0" class="opt-cost" oninput="calculateAll()">
+                    <label>إجمالي البيع ($):</label>
+                    <div class="comm-result-box opt-total-usd">0.00 $</div>
+                </div>
+                <div class="form-group">
+                    <label>تكلفة الفرد (EGP):</label>
+                    <input type="number" value="0" step="any" class="opt-cost-egp" oninput="calculateAll()">
+                </div>
+                <div class="form-group">
+                    <label>إجمالي التكلفة (EGP):</label>
+                    <div class="comm-result-box opt-total-cost-egp">0.00 EGP</div>
                 </div>
                 <div class="form-group">
                     <label>نسبة المرشد %:</label>
                     <input type="number" value="20" class="opt-guide-pct" oninput="calculateAll()">
                 </div>
                 <div class="form-group">
-                    <label>عمولة المرشد:</label>
-                    <div class="comm-result-box opt-guide-comm-val">0.00</div>
+                    <label>عمولة المرشد (EGP):</label>
+                    <div class="comm-result-box opt-guide-comm-val">0.00 EGP</div>
                 </div>
             </div>
         `;
@@ -677,15 +683,25 @@
 
     function calculateAll() {
         let totalOptComm = 0;
+
         document.querySelectorAll('.opt-card-item').forEach(card => {
             const pax = parseFloat(card.querySelector('.opt-pax').value) || 0;
-            const price = parseFloat(card.querySelector('.opt-price').value) || 0;
-            const cost = parseFloat(card.querySelector('.opt-cost').value) || 0;
+            const priceUsd = parseFloat(card.querySelector('.opt-price-usd').value) || 0;
+            const costEgp = parseFloat(card.querySelector('.opt-cost-egp').value) || 0;
             const guidePct = (parseFloat(card.querySelector('.opt-guide-pct').value) || 0) / 100;
 
-            const netProfit = (pax * price) - cost;
-            const guideComm = netProfit > 0 ? netProfit * guidePct : 0;
-            card.querySelector('.opt-guide-comm-val').innerText = guideComm.toFixed(2);
+            // 1. حساب إجمالي البيع بالدولار = عدد الأفراد * سعر البيع للفرد
+            const totalUsd = pax * priceUsd;
+            card.querySelector('.opt-total-usd').innerText = totalUsd.toFixed(2) + ' $';
+
+            // 2. حساب إجمالي التكلفة بالجنيه المصري = عدد الأفراد * تكلفة الفرد
+            const totalCostEgp = pax * costEgp;
+            card.querySelector('.opt-total-cost-egp').innerText = totalCostEgp.toFixed(2) + ' EGP';
+
+            // 3. حساب عمولة المرشد بالجنيه (مبنية على نسبة المستحق)
+            const guideComm = totalCostEgp > 0 ? (totalCostEgp * guidePct) : 0;
+            card.querySelector('.opt-guide-comm-val').innerText = guideComm.toFixed(2) + ' EGP';
+            
             totalOptComm += guideComm;
         });
 
@@ -733,7 +749,7 @@
             feeNotes: document.getElementById('feeNotes').value,
             shops: [],
             optionals: [],
-            attachments: [...attachedFilesBase64], // حفظ صور الفواتير المرفقة
+            attachments: [...attachedFilesBase64],
             totalDue: document.getElementById('totalDueEgp').innerText,
             totalExp: document.getElementById('totalExpEgp').innerText,
             netAmount: document.getElementById('netEgp').innerText
@@ -751,8 +767,10 @@
             formData.optionals.push({
                 name: card.querySelector('.opt-name').value,
                 pax: card.querySelector('.opt-pax').value,
-                price: card.querySelector('.opt-price').value,
-                cost: card.querySelector('.opt-cost').value,
+                priceUsd: card.querySelector('.opt-price-usd').value,
+                totalUsd: card.querySelector('.opt-total-usd').innerText,
+                costEgp: card.querySelector('.opt-cost-egp').value,
+                totalCostEgp: card.querySelector('.opt-total-cost-egp').innerText,
                 guidePct: card.querySelector('.opt-guide-pct').value,
                 comm: card.querySelector('.opt-guide-comm-val').innerText
             });
@@ -762,7 +780,7 @@
         cloudData.pending.push(formData);
         await saveCloudData();
 
-        alert("✅ تم إرسال التصفية والمرفقات بنجاح إلى المراجعة!");
+        alert("✅ تم إرسال التصفية بنجاح إلى شاشة المراجعة!");
         document.getElementById('settlementForm').reset();
         document.getElementById('shopsContainer').innerHTML = '';
         document.getElementById('optionalContainer').innerHTML = '';
@@ -902,7 +920,7 @@
         if (item.optionals && item.optionals.length > 0) {
             html += `<hr style="border-color: var(--border-vintage);"><h4>الرحلات الاختيارية:</h4><ul>`;
             item.optionals.forEach(o => {
-                html += `<li>${o.name || 'رحلة'}: ${o.pax} أفراد × ${o.price} = إجمالي ${o.pax * o.price} | عمولة المرشد: ${o.comm} EGP</li>`;
+                html += `<li><b>${o.name || 'رحلة'}</b>: ${o.pax} أفراد | سعر البيع للفرد: ${o.priceUsd} $ (الإجمالي: ${o.totalUsd}) | التكلفة للفرد: ${o.costEgp} EGP (إجمالي التكلفة: ${o.totalCostEgp}) | عمولة المرشد: ${o.comm}</li>`;
             });
             html += `</ul>`;
         }
