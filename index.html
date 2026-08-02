@@ -470,8 +470,9 @@
     const SECRET_PIN = "991997";
     const STORAGE_KEY = "tafseya_app_permanent_db";
 
+    // تم تحديث رابط قاعدة بيانات Firebase الخاصة بك هنا بنجاح
     const firebaseConfig = {
-        databaseURL: "https://tafseya-system-default-rtdb.europe-west1.firebasedatabase.app/"
+        databaseURL: "https://tasfeya-40a8b-default-rtdb.europe-west1.firebasedatabase.app/"
     };
     
     let db = null;
@@ -683,11 +684,9 @@
             const priceUsd = parseFloat(card.querySelector('.opt-price-usd').value) || 0;
             const costEgp = parseFloat(card.querySelector('.opt-cost-egp').value) || 0;
 
-            // 1. حساب إجمالي البيع بالدولار = عدد الأفراد * سعر البيع للفرد
             const totalUsd = pax * priceUsd;
             card.querySelector('.opt-total-usd').innerText = totalUsd.toFixed(2) + ' $';
 
-            // 2. حساب إجمالي التكلفة بالجنيه المصري = عدد الأفراد * تكلفة الفرد
             const totalCostEgp = pax * costEgp;
             card.querySelector('.opt-total-cost-egp').innerText = totalCostEgp.toFixed(2) + ' EGP';
         });
