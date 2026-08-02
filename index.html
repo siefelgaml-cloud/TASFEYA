@@ -1,308 +1,897 @@
-feeNotes: document.getElementById('feeNotes').value,
-        shops: Array.from(document.querySelectorAll('.shop-card-item')).map(card => ({
-            name: card.querySelector('.shop-name').value,
-            sales: parseFloat(card.querySelector('.shop-sales').value) || 0,
-            curr: card.querySelector('.shop-curr').value
-        })),
-        optionals: Array.from(document.querySelectorAll('.opt-card-item')).map(card => ({
-            name: card.querySelector('.opt-name').value,
-            pax: parseFloat(card.querySelector('.opt-pax').value) || 0,
-            price: parseFloat(card.querySelector('.opt-price').value) || 0,
-            cost: parseFloat(card.querySelector('.opt-cost').value) || 0,
-            guidePct: parseFloat(card.querySelector('.opt-guide-pct').value) || 0,
-            guideComm: parseFloat(card.querySelector('.opt-guide-comm-val').innerText) || 0
-        })),
-        totalDue: parseFloat(document.getElementById('totalDueEgp').innerText) || 0,
-        totalExp: parseFloat(document.getElementById('totalExpEgp').innerText) || 0,
-        net: parseFloat(document.getElementById('netEgp').innerText) || 0,
-        status: 'قيد المراجعة'
-    };
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام تصفية واستحقاق حسابات المرشدين</title>
+    <!-- مكتبة html2pdf لتصدير الملفات إلى PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- مكتبة xlsx-js-style لتصدير البيانات إلى ملفات Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
-    if (!cloudData.pending) cloudData.pending = [];
-    cloudData.pending.push(formData);
+    <!-- مكتبات Firebase للمزامنة اللحظية بين الهاتف والكمبيوتر -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    await saveCloudData();
-    alert("✅ تم إرسال التصفية بنجاح إلى قائمة المراجعة!");
-    
-    // إعادة ضبط النموذج
-    document.getElementById('settlementForm').reset();
-    document.getElementById('shopsContainer').innerHTML = '';
-    document.getElementById('optionalContainer').innerHTML = '';
-    if (typeof calculateAll === 'function') calculateAll();
-}
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Cinzel:wght@600;700;800;900&family=Montserrat:wght@400;600;700&display=swap');
 
-// عرض جدول المراجعة
-function renderReviewTable() {
-    const tbody = document.getElementById('reviewTableBody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    if (!cloudData.pending || cloudData.pending.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8">لا توجد طلبات قيد المراجعة حالياً</td></tr>';
-        return;
-    }
-
-    cloudData.pending.forEach((item, index) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${item.guideName}</td>
-            <td>${item.fileNo}</td>
-            <td>${item.date}</td>
-            <td>${item.totalDue.toFixed(2)} EGP</td>
-            <td>${item.totalExp.toFixed(2)} EGP</td>
-            <td class="${item.net >= 0 ? 'positive' : 'negative'}">${item.net.toFixed(2)} EGP</td>
-            <td><button class="btn btn-info" onclick="viewDetails('pending', ${index})">عرض</button></td>
-            <td>
-                <button class="btn btn-submit" style="padding:4px 8px; font-size:0.85em;" onclick="approveItem(${index})">إعتماد ✅</button>
-                <button class="btn btn-danger" onclick="rejectItem(${index})">رفض ❌</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-// اعتماد الطلب ونقله إلى الأرشيف
-async function approveItem(index) {
-    if (!confirm("هل أنت تأكد من اعتماد هذه التصفية ونقلها للأرشيف؟")) return;
-    
-    let item = cloudData.pending.splice(index, 1)[0];
-    item.status = "معتمد";
-    item.settledDate = new Date().toLocaleDateString('ar-EG');
-    
-    if (!cloudData.archive) cloudData.archive = [];
-    cloudData.archive.push(item);
-    
-    await saveCloudData();
-}
-
-// رفض الطلب ونقله إلى الأرشيف
-async function rejectItem(index) {
-    if (!confirm("هل أنت تأكد من رفض هذه التصفية؟")) return;
-    
-    let item = cloudData.pending.splice(index, 1)[0];
-    item.status = "مرفوض";
-    item.settledDate = new Date().toLocaleDateString('ar-EG');
-    
-    if (!cloudData.archive) cloudData.archive = [];
-    cloudData.archive.push(item);
-    
-    await saveCloudData();
-}
-
-// عرض جدول الأرشيف
-function renderArchiveTable() {
-    const tbody = document.getElementById('archiveTableBody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    
-    const filterText = (document.getElementById('archiveFilterInput')?.value || '').toLowerCase();
-    const filterStatus = document.getElementById('archiveStatusFilter')?.value || 'ALL';
-
-    let list = cloudData.archive || [];
-
-    // الفلترة
-    list = list.filter(item => {
-        const matchesText = item.guideName.toLowerCase().includes(filterText) || item.fileNo.toLowerCase().includes(filterText);
-        const matchesStatus = filterStatus === 'ALL' || item.status === filterStatus;
-        return matchesText && matchesStatus;
-    });
-
-    if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9">لا توجد سجلات مطابقة في الأرشيف</td></tr>';
-        if (document.getElementById('totalGuideFeesSum')) {
-            document.getElementById('totalGuideFeesSum').innerText = '0.00 EGP';
+        :root {
+            --vintage-paper: #eee0cf;
+            --vintage-card: #fdfbf7;
+            --primary-navy: #0f2c4a;
+            --vintage-gold: #b8860b;
+            --vintage-gold-dark: #8b6508;
+            --border-vintage: #a89478;
+            --text-vintage: #2b2319;
+            --green: #276738;
+            --red: #a82323;
+            --sidebar-width: 260px;
         }
-        return;
-    }
 
-    let totalFeesSum = 0;
+        body {
+            font-family: 'Amiri', serif;
+            color: var(--text-vintage);
+            margin: 0; padding: 0;
+            min-height: 100vh;
+            background-color: var(--vintage-paper);
+            background-image: 
+                radial-gradient(circle at center, rgba(253, 251, 247, 0.7) 10%, rgba(184, 148, 105, 0.35) 100%),
+                repeating-linear-gradient(45deg, rgba(168, 148, 120, 0.04) 0px, rgba(168, 148, 120, 0.04) 2px, transparent 2px, transparent 5px);
+            background-attachment: fixed;
+            display: flex;
+        }
 
-    list.forEach((item, index) => {
-        totalFeesSum += (item.feeEgp || 0);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${item.guideName}</td>
-            <td>${item.fileNo}</td>
-            <td>${item.settledDate || item.date}</td>
-            <td>${(item.feeEgp || 0).toFixed(2)} EGP</td>
-            <td>${item.totalDue.toFixed(2)} EGP</td>
-            <td>${item.totalExp.toFixed(2)} EGP</td>
-            <td class="${item.net >= 0 ? 'positive' : 'negative'}">${item.net.toFixed(2)} EGP</td>
-            <td class="${item.status === 'معتمد' ? 'status-approved' : 'status-rejected'}">${item.status}</td>
-            <td><button class="btn btn-info" onclick="viewDetails('archive', ${index})">عرض</button></td>
-        `;
-        tbody.appendChild(tr);
-    });
+        body::before {
+            content: ""; position: fixed; top: 12px; left: 12px; right: 12px; bottom: 12px;
+            border: 1px solid var(--border-vintage); outline: 2px double var(--vintage-gold);
+            pointer-events: none; z-index: 999; opacity: 0.4;
+        }
 
-    if (document.getElementById('totalGuideFeesSum')) {
-        document.getElementById('totalGuideFeesSum').innerText = totalFeesSum.toFixed(2) + ' EGP';
-    }
-}
+        .sidebar {
+            width: var(--sidebar-width); background: var(--primary-navy);
+            border-left: 3px double var(--vintage-gold); min-height: 100vh;
+            padding: 30px 15px; box-sizing: border-box; position: fixed;
+            right: 0; top: 0; bottom: 0; z-index: 100;
+            display: flex; flex-direction: column; gap: 15px;
+            box-shadow: -4px 0 15px rgba(0, 0, 0, 0.15);
+        }
 
-// عرض التفاصيل داخل النافذة المنبثقة (Modal)
-function viewDetails(type, index) {
-    const item = type === 'pending' ? cloudData.pending[index] : cloudData.archive[index];
-    currentModalFileNo = item.fileNo;
+        .sidebar-title {
+            color: var(--vintage-paper); text-align: center;
+            font-size: 1.2em; font-weight: bold;
+            border-bottom: 2px double var(--vintage-gold);
+            padding-bottom: 15px; margin-bottom: 10px;
+        }
 
-    let html = `
-        <p><b>اسم المرشد:</b> ${item.guideName} | <b>رقم الملف:</b> ${item.fileNo} | <b>التاريخ:</b> ${item.date}</p>
-        <hr style="border-color: var(--border-vintage, #ccc);">
-        <h4>1. المصروفات المباشرة والعهدة:</h4>
-        <ul>
-            <li>العهدة المستلمة: ${item.floatEgp} EGP (${item.floatNotes || 'لا توجد ملاحظات'})</li>
-            <li>مصاريف الغداء: ${item.lunchEgp} EGP (${item.lunchNotes || '-'})</li>
-            <li>الإكراميات: ${item.tipsEgp} EGP (${item.tipsNotes || '-'})</li>
-            <li>الباركينج: ${item.parkingEgp} EGP (${item.parkingNotes || '-'})</li>
-            <li>أتعاب المرشد: ${item.feeEgp} EGP (${item.feeNotes || '-'})</li>
-        </ul>
-    `;
+        .nav-btn {
+            background: rgba(253, 251, 247, 0.05); color: #fff;
+            padding: 14px 15px; border-radius: 4px; font-weight: bold;
+            border: 1px solid var(--vintage-gold); cursor: pointer;
+            font-family: 'Amiri', serif; font-size: 1.05em; transition: all 0.3s;
+            text-align: right; display: flex; align-items: center; gap: 10px;
+            justify-content: space-between; position: relative;
+        }
 
-    if (item.shops && item.shops.length > 0) {
-        html += `<h4>2. مبيعات المحلات:</h4><ul>`;
-        item.shops.forEach(s => {
-            html += `<li>${s.name || 'محل'}: ${s.sales} ${s.curr}</li>`;
-        });
-        html += `</ul>`;
-    }
+        .nav-btn.active, .nav-btn:hover {
+            background: var(--vintage-gold-dark); color: #fff;
+            border-color: #fff; transform: translateX(-5px);
+        }
 
-    if (item.optionals && item.optionals.length > 0) {
-        html += `<h4>3. الرحلات الاختيارية:</h4><ul>`;
-        item.optionals.forEach(o => {
-            html += `<li>${o.name || 'رحلة'}: ${o.pax} أفراد × ${o.price} = إجمالي ${o.pax * o.price} | عمولة المرشد: ${o.guideComm.toFixed(2)} EGP</li>`;
-        });
-        html += `</ul>`;
-    }
+        .badge {
+            background-color: var(--red); color: white;
+            font-size: 0.85em; font-weight: bold;
+            padding: 2px 8px; border-radius: 12px;
+            border: 1px solid #fff; display: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+        }
 
-    html += `
-        <hr style="border-color: var(--border-vintage, #ccc);">
-        <div style="background-color: #fbf5eb; padding:10px; border:1px solid var(--vintage-gold, #c5a059); border-radius:4px;">
-            <p style="margin:5px 0;"><b>إجمالي ما بذمة المرشد:</b> ${item.totalDue.toFixed(2)} EGP</p>
-            <p style="margin:5px 0;"><b>إجمالي المصروفات والأتعاب:</b> ${item.totalExp.toFixed(2)} EGP</p>
-            <p style="margin:5px 0; font-size:1.2em;"><b>الصافي النهائي:</b> <span class="${item.net >= 0 ? 'positive' : 'negative'}">${item.net.toFixed(2)} EGP</span></p>
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .main-wrapper {
+            margin-right: var(--sidebar-width); flex: 1;
+            padding: 30px 20px; box-sizing: border-box; width: 100%;
+        }
+
+        .container { max-width: 1050px; margin: 0 auto; position: relative; z-index: 1; }
+
+        .header-vintage {
+            border: 3px double var(--vintage-gold-dark); padding: 25px 35px; background: var(--vintage-card);
+            border-radius: 4px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 8px 20px rgba(43, 35, 25, 0.1); flex-wrap: wrap; gap: 15px;
+        }
+
+        .subtitle-styled {
+            font-family: 'Amiri', serif; font-size: 1.85em; font-weight: 700; color: var(--primary-navy);
+            margin: 0; line-height: 1.3; border-bottom: 2px solid var(--vintage-gold); padding-bottom: 6px;
+        }
+
+        .logo-box-left { text-align: center; font-family: 'Cinzel', serif; direction: ltr; padding-left: 25px; border-left: 2px dashed var(--border-vintage); }
+        .logo-title-main { font-size: 1.4em; font-weight: 800; color: var(--primary-navy); margin: 0; }
+        .logo-title-sub { font-size: 1.55em; font-weight: 900; color: var(--vintage-gold-dark); margin: 4px 0; }
+        .logo-tagline { font-family: 'Montserrat', sans-serif; font-size: 0.65em; font-weight: 600; color: #554838; text-transform: uppercase; margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--vintage-gold); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .card { background: var(--vintage-card); border: 2px solid var(--border-vintage); border-radius: 4px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(43, 35, 25, 0.08); }
+        .card h3 { color: var(--primary-navy); border-bottom: 2px double var(--vintage-gold); padding-bottom: 10px; margin-top: 0; font-size: 1.35em; }
+
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        label { font-weight: bold; font-size: 1.05em; color: var(--primary-navy); }
+
+        input, select {
+            padding: 9px 12px; border: 1px solid var(--border-vintage); background-color: #fdfbf7;
+            border-radius: 3px; font-family: 'Amiri', serif; font-size: 1.05em; color: var(--text-vintage);
+            outline: none; width: 100%; box-sizing: border-box;
+        }
+
+        .vertical-item-card { border: 1px solid var(--border-vintage); background-color: #fcf9f2; border-radius: 4px; padding: 18px; margin-top: 15px; }
+        .vertical-card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-vintage); padding-bottom: 10px; margin-bottom: 15px; }
+        .vertical-grid-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end; }
+
+        .comm-result-box { background-color: #e8dbca; border: 1px solid var(--vintage-gold-dark); padding: 8px 12px; border-radius: 3px; text-align: center; font-weight: bold; color: var(--primary-navy); height: 40px; display: flex; align-items: center; justify-content: center; }
+
+        .table-responsive { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; min-width: 600px; }
+        th, td { border: 1px solid var(--border-vintage); padding: 10px 12px; text-align: center; font-size: 1.05em; }
+        th { background-color: #e8dbca; color: var(--primary-navy); font-weight: bold; border-bottom: 2px solid var(--vintage-gold-dark); }
+        tfoot td { background-color: #e8dbca; font-weight: bold; color: var(--primary-navy); border-top: 2px solid var(--vintage-gold-dark); }
+
+        .btn { background-color: var(--primary-navy); color: #fcf8f2; border: 1px solid var(--vintage-gold-dark); padding: 10px 22px; border-radius: 3px; cursor: pointer; font-family: 'Amiri', serif; font-weight: bold; font-size: 1.1em; transition: 0.2s; }
+        .btn:hover { background-color: var(--vintage-gold-dark); color: #ffffff; }
+        .btn-submit { background-color: var(--green); border-color: #1a4726; }
+        .btn-pdf { background-color: #c53030; border-color: #742a2a; color: white; }
+        .btn-pdf:hover { background-color: #9b2c2c; }
+        .btn-excel { background-color: #1d6f42; border-color: #144e2e; color: white; }
+        .btn-excel:hover { background-color: #155231; }
+        .btn-danger { background-color: var(--red); border-color: #701010; color: white; padding: 4px 12px; font-size: 0.9em; }
+        .btn-info { background-color: #2b6cb0; border-color: #1a4971; color: white; padding: 5px 12px; font-size: 0.95em; }
+
+        .summary-card { border: 3px double var(--vintage-gold-dark); background-color: #fbf5eb; }
+        .positive { color: var(--green); font-weight: bold; font-size: 1.25em; }
+        .negative { color: var(--red); font-weight: bold; font-size: 1.25em; }
+
+        .status-approved { color: var(--green); font-weight: bold; }
+        .status-rejected { color: var(--red); font-weight: bold; }
+
+        .filter-bar {
+            display: flex; gap: 15px; margin-bottom: 15px; background: #fbf5eb;
+            padding: 15px; border: 1px solid var(--border-vintage); border-radius: 4px;
+            align-items: center; flex-wrap: wrap;
+        }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.65); display: none; justify-content: center;
+            align-items: center; z-index: 1000; padding: 10px; box-sizing: border-box;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-card {
+            background: var(--vintage-card); border: 3px double var(--vintage-gold-dark);
+            border-radius: 6px; width: 100%; max-width: 800px; max-height: 90vh;
+            overflow-y: auto; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            position: relative; box-sizing: border-box;
+        }
+        .modal-close {
+            position: absolute; top: 15px; left: 15px; background: var(--red);
+            color: white; border: none; font-size: 1.2em; width: 32px; height: 32px;
+            border-radius: 50%; cursor: pointer; font-weight: bold;
+        }
+
+        @media screen and (max-width: 768px) {
+            body { flex-direction: column; }
+            body::before { display: none; }
+            .sidebar {
+                position: relative; width: 100%; min-height: auto; height: auto;
+                padding: 15px 10px; flex-direction: row; flex-wrap: wrap;
+                justify-content: center; gap: 8px; border-left: none;
+                border-bottom: 3px double var(--vintage-gold);
+            }
+            .sidebar-title { width: 100%; margin-bottom: 5px; padding-bottom: 5px; font-size: 1em; }
+            .nav-btn { flex: 1; min-width: 100px; padding: 8px 10px; font-size: 0.85em; justify-content: center; text-align: center; }
+            .nav-btn.active, .nav-btn:hover { transform: none; }
+            .main-wrapper { margin-right: 0; padding: 15px 10px; }
+            .header-vintage { flex-direction: column; text-align: center; padding: 15px; }
+            .logo-box-left { border-left: none; border-top: 2px dashed var(--border-vintage); padding-left: 0; padding-top: 15px; width: 100%; }
+            .subtitle-styled { font-size: 1.3em; }
+            .card { padding: 15px; }
+        }
+
+        @media print { 
+            .no-print, body::before, .sidebar, .modal-close { display: none !important; }
+            .main-wrapper { margin-right: 0 !important; padding: 0 !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar no-print">
+    <div class="sidebar-title">قائمة النظام</div>
+    <button class="nav-btn active" onclick="switchTab('tab-form')">
+        <span>📝 1. نموذج التصفية</span>
+    </button>
+    <button class="nav-btn" onclick="switchTab('tab-review')">
+        <span>🔒 2. مراجعة الطلبات</span>
+        <span id="reviewBadge" class="badge">0</span>
+    </button>
+    <button class="nav-btn" onclick="switchTab('tab-archive')">
+        <span>🔒 3. الأرشيف والبحث</span>
+    </button>
+</div>
+
+<div class="main-wrapper">
+    <div class="container" id="printableFormArea">
+
+        <div class="header-vintage">
+            <div class="header-title-right">
+                <h1 class="subtitle-styled">نظام تصفية واستحقاق حسابات المرشدين السياحيين</h1>
+            </div>
+            <div class="logo-box-left">
+                <div class="logo-title-main">LOOK AT</div>
+                <div class="logo-title-sub">EGYPT TOURS</div>
+                <div class="logo-tagline">The Luxury DMC of Egypt</div>
+            </div>
         </div>
-    `;
 
-    const modalContent = document.getElementById('modalContent');
-    if (modalContent) modalContent.innerHTML = html;
-    
-    const detailsModal = document.getElementById('detailsModal');
-    if (detailsModal) detailsModal.classList.add('active');
-}
+        <!-- الشاشة الأولى -->
+        <div id="tab-form" class="tab-content active">
+            <form id="settlementForm" onsubmit="event.preventDefault();">
+                <div class="card">
+                    <h3>بيانات الرحلة والمرشد</h3>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>اسم المرشد: <span style="color:var(--red)">*</span></label>
+                            <input type="text" id="guideInput" placeholder="اكتب اسم المرشد هنا..." required>
+                        </div>
+                        <div class="form-group">
+                            <label>رقم الملف: <span style="color:var(--red)">*</span></label>
+                            <input type="text" id="fileNo" placeholder="مثال: FL-2026-102" required>
+                        </div>
+                    </div>
+                </div>
 
-function closeModal() {
-    const detailsModal = document.getElementById('detailsModal');
-    if (detailsModal) detailsModal.classList.remove('active');
-}
+                <div class="card">
+                    <h3>العهدة والمصروفات المباشرة (EGP)</h3>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%;">البيان</th>
+                                    <th style="width: 30%;">المبلغ (بالجنيه المصري)</th>
+                                    <th style="width: 45%;">ملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><b>العهدة المستلمة</b></td>
+                                    <td><input type="number" id="floatEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="text" id="floatNotes" placeholder="مثال: نقداً من الخزينة / تحويل"></td>
+                                </tr>
+                                <tr>
+                                    <td>مصاريف الغداء</td>
+                                    <td><input type="number" id="lunchEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="text" id="lunchNotes" placeholder="تفاصيل مطعم الغداء..."></td>
+                                </tr>
+                                <tr>
+                                    <td>الإكراميات (Tips)</td>
+                                    <td><input type="number" id="tipsEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="text" id="tipsNotes" placeholder="إكراميات سائق / مطار / معابد..."></td>
+                                </tr>
+                                <tr>
+                                    <td>الباركينج والرسوم</td>
+                                    <td><input type="number" id="parkingEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="text" id="parkingNotes" placeholder="رسوم انتظار / بوابات..."></td>
+                                </tr>
+                                <tr>
+                                    <td>أتعاب المرشد (اليومية)</td>
+                                    <td><input type="number" id="feeEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="text" id="feeNotes" placeholder="عدد الأيام / تفاصيل يومية الإرشاد..."></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
-// تصدير النافذة إلى PDF
-function downloadModalPDF() {
-    const element = document.getElementById('pdfExportArea');
-    if (!element) return;
-    const opt = {
-        margin:       10,
-        filename:     `Tafseya_${currentModalFileNo}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    if (typeof html2pdf !== 'undefined') {
-        html2pdf().set(opt).from(element).save();
-    } else {
-        alert("مكتبة html2pdf غير محملة");
-    }
-}
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin:0;">مبيعات المحلات (Shops)</h3>
+                        <button type="button" class="btn no-print" onclick="addShopRow()">+ إضافة محل</button>
+                    </div>
+                    <div id="shopsContainer"></div>
+                </div>
 
-// تصدير الأرشيف إلى ملف Excel
-function exportBackupData() {
-    if (!cloudData.archive || cloudData.archive.length === 0) {
-        alert("❌ لا توجد بيانات في الأرشيف لتصديرها!");
-        return;
-    }
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin:0;">الرحلات الاختيارية (Optional Tours)</h3>
+                        <button type="button" class="btn no-print" onclick="addOptionalRow()">+ إضافة رحلة</button>
+                    </div>
+                    <div id="optionalContainer"></div>
+                </div>
 
-    const exportData = cloudData.archive.map(item => ({
-        "اسم المرشد": item.guideName,
-        "رقم الملف": item.fileNo,
-        "تاريخ الحسم": item.settledDate || item.date,
-        "أتعاب المرشد": item.feeEgp,
-        "العهدة": item.floatEgp,
-        "مصاريف الغداء": item.lunchEgp,
-        "الإكراميات": item.tipsEgp,
-        "الباركينج": item.parkingEgp,
-        "إجمالي ما بذمته": item.totalDue,
-        "إجمالي المصروفات": item.totalExp,
-        "الصافي النهائي": item.net,
-        "الحالة": item.status
-    }));
+                <div class="card summary-card">
+                    <h3>صافي التصفية النهائي (EGP)</h3>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>إجمالي ما بذمة المرشد</th>
+                                    <th>إجمالي المصروفات والأتعاب</th>
+                                    <th>الصافي النهائي</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td id="totalDueEgp">0.00 EGP</td>
+                                    <td id="totalExpEgp">0.00 EGP</td>
+                                    <td id="netEgp" class="positive">0.00 EGP</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
 
-    if (typeof XLSX !== 'undefined') {
-        const worksheet = XLSX.utils.json_to_sheet(exportData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "الأرشيف");
-        XLSX.writeFile(workbook, `Tafseya_Archive_${new Date().toISOString().slice(0,10)}.xlsx`);
-    } else {
-        alert("مكتبة XLSX غير محملة");
-    }
-}
+                    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px; flex-wrap:wrap;" class="no-print">
+                        <button type="button" class="btn btn-submit" onclick="submitSettlement()">إرسال التصفية للمراجعة 📤</button>
+                    </div>
+                </div>
+            </form>
+        </div>
 
-// -------------------------------------------------------------
-// 🔥 ربط Firebase Realtime Database
-// -------------------------------------------------------------
-</script>
+        <!-- الشاشة الثانية -->
+        <div id="tab-review" class="tab-content">
+            <div class="card">
+                <h3>الطلبات الواردة (قيد المراجعة)</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>اسم المرشد</th>
+                                <th>رقم الملف</th>
+                                <th>التاريخ</th>
+                                <th>ما بذمته</th>
+                                <th>المصروفات</th>
+                                <th>الصافي</th>
+                                <th>عرض التفاصيل</th>
+                                <th>الإجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reviewTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-<!-- مكتبات Firebase JS SDK (Compatibility Mode) -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+        <!-- الشاشة الثالثة -->
+        <div id="tab-archive" class="tab-content">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+                    <h3 style="margin-top:0;">سجل التصفيات المحسومة (الأرشيف)</h3>
+                    <div class="no-print" style="display:flex; gap:8px; margin-bottom:10px;">
+                        <button class="btn btn-excel" style="font-size:0.85em; padding:6px 12px;" onclick="exportBackupData()">تصدير أكسيل Excel 📊</button>
+                    </div>
+                </div>
+                
+                <div class="filter-bar no-print">
+                    <div class="form-group" style="flex: 2; min-width:200px;">
+                        <label>🔍 فلترة باسم المرشد أو رقم الملف:</label>
+                        <input type="text" id="archiveFilterInput" placeholder="اكتب اسم المرشد أو رقم الملف..." oninput="renderArchiveTable()">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width:130px;">
+                        <label>الحالة:</label>
+                        <select id="archiveStatusFilter" onchange="renderArchiveTable()">
+                            <option value="ALL">الكل</option>
+                            <option value="معتمد">معتمد ✅</option>
+                            <option value="مرفوض">مرفوض ❌</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>اسم المرشد</th>
+                                <th>رقم الملف</th>
+                                <th>تاريخ الحسم</th>
+                                <th>أتعاب المرشد</th>
+                                <th>ما بذمته</th>
+                                <th>المصروفات</th>
+                                <th>الصافي</th>
+                                <th>الحالة النهائيّة</th>
+                                <th>عرض التفاصيل</th>
+                            </tr>
+                        </thead>
+                        <tbody id="archiveTableBody"></tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3"><b>الإجمالي العام للصفوف المعروضة:</b></td>
+                                <td id="totalGuideFeesSum">0.00 EGP</td>
+                                <td colspan="5"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="detailsModal" class="modal-overlay">
+    <div class="modal-card">
+        <button class="modal-close no-print" onclick="closeModal()">×</button>
+        <div id="pdfExportArea">
+            <h2 style="color: var(--primary-navy); border-bottom: 2px solid var(--vintage-gold); padding-bottom: 8px; margin-top:0;">
+                تفاصيل تصفية حساب مرشد
+            </h2>
+            <div id="modalContent"></div>
+        </div>
+        <div style="text-align: left; margin-top: 20px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;" class="no-print">
+            <button class="btn btn-pdf" onclick="downloadModalPDF()">تحميل PDF 📄</button>
+            <button class="btn" onclick="window.print()">طباعة التقرير 🖨️</button>
+            <button class="btn btn-danger" onclick="closeModal()">إغلاق</button>
+        </div>
+    </div>
+</div>
 
 <script>
-    // ⚙️ استبدل البيانات التالية ببيانات مشروعك الخاصة من لوحة تحكم Firebase
-    const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-        databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT_ID.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
-    };
+    const SECRET_PIN = "991997";
+    const STORAGE_KEY = "tafseya_app_permanent_db";
 
-    // تهيئة Firebase
-    firebase.initializeApp(firebaseConfig);
+    // إعدادات Firebase المفتوحة للمزامنة المباشرة
+    const firebaseConfig = {
+        databaseURL: "https://tafseya-system-default-rtdb.europe-west1.firebasedatabase.app/"
+    };
+    
+    // تهيئة السيرفر المباشر
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
     const db = firebase.database();
 
     let cloudData = { pending: [], archive: [] };
-    let currentModalFileNo = '';
+    let currentModalFileNo = "Settlement";
 
-    // بدء المزامنة الحية (Real-time Sync)
+    // الاستماع اللحظي للبيانات من أي هاتف أو كمبيوتر في نفس الوقت
     function initRealtimeSync() {
-        const dataRef = db.ref('tafseya_data');
-        
-        dataRef.on('value', (snapshot) => {
+        db.ref('tafseya_data').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                cloudData = data;
+                cloudData.pending = data.pending || [];
+                cloudData.archive = data.archive || [];
             } else {
                 cloudData = { pending: [], archive: [] };
             }
-            // إعادة رسم الجداول فور وصول أو تحديث البيانات
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
             renderReviewTable();
             renderArchiveTable();
+            updateBadge();
         });
     }
 
-    // حفظ واستبدال البيانات السحابية في Firebase
+    // حفظ البيانات في القاعدة اللحظية الموحدة
     async function saveCloudData() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
         try {
             await db.ref('tafseya_data').set(cloudData);
-            console.log("تم حفظ البيانات في Firebase بنجاح");
-        } catch (error) {
-            console.error("خطأ أثناء الحفظ في Firebase:", error);
-            alert("❌ حدث خطأ أثناء حفظ البيانات في السحابة!");
+        } catch (e) {
+            console.error("خطأ التحديث اللحظي:", e);
         }
     }
 
-    // تشغيل المزامنة فور فتح الصفحة
+    function updateBadge() {
+        const badge = document.getElementById('reviewBadge');
+        const count = cloudData.pending ? cloudData.pending.length : 0;
+        if (count > 0) {
+            badge.innerText = count;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    function switchTab(tabId) {
+        if (tabId === 'tab-review' || tabId === 'tab-archive') {
+            const userPin = prompt("🔒 هذا القسم محمي برقم سري، يرجى إدخال رمز الدخول:");
+            if (userPin !== SECRET_PIN) {
+                if (userPin !== null) alert("❌ الرقم السري غير صحيح!");
+                return;
+            }
+        }
+
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+
+        document.getElementById(tabId).classList.add('active');
+        const btnIndex = tabId === 'tab-form' ? 0 : tabId === 'tab-review' ? 1 : 2;
+        document.querySelectorAll('.nav-btn')[btnIndex].classList.add('active');
+
+        if (tabId === 'tab-review') renderReviewTable();
+        if (tabId === 'tab-archive') renderArchiveTable();
+    }
+
+    let shopCounter = 0;
+    function addShopRow() {
+        shopCounter++;
+        const container = document.getElementById('shopsContainer');
+        const shopCard = document.createElement('div');
+        shopCard.className = 'vertical-item-card shop-card-item';
+        shopCard.innerHTML = `
+            <div class="vertical-card-header">
+                <span><b>بيانات المحل #${shopCounter}</b></span>
+                <button type="button" class="btn btn-danger no-print" onclick="this.parentElement.parentElement.remove(); calculateAll();">حذف</button>
+            </div>
+            <div class="vertical-grid-fields">
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>اسم المحل:</label>
+                    <input type="text" placeholder="مثال: محل برديات / عطور" class="shop-name">
+                </div>
+                <div class="form-group">
+                    <label>إجمالي المبيعات:</label>
+                    <input type="number" value="0" class="shop-sales" oninput="calculateAll()">
+                </div>
+                <div class="form-group">
+                    <label>العملة:</label>
+                    <select class="shop-curr"><option value="EGP">EGP</option></select>
+                </div>
+            </div>
+        `;
+        container.appendChild(shopCard);
+        calculateAll();
+    }
+
+    let optionalCounter = 0;
+    function addOptionalRow() {
+        optionalCounter++;
+        const container = document.getElementById('optionalContainer');
+        const optCard = document.createElement('div');
+        optCard.className = 'vertical-item-card opt-card-item';
+        optCard.innerHTML = `
+            <div class="vertical-card-header">
+                <span><b>الرحلة الاختيارية #${optionalCounter}</b></span>
+                <button type="button" class="btn btn-danger no-print" onclick="this.parentElement.parentElement.remove(); calculateAll();">حذف</button>
+            </div>
+            <div class="vertical-grid-fields">
+                <div class="form-group">
+                    <label>اسم الرحلة:</label>
+                    <input type="text" class="opt-name">
+                </div>
+                <div class="form-group">
+                    <label>عدد الأفراد:</label>
+                    <input type="number" value="1" class="opt-pax" oninput="calculateAll()">
+                </div>
+                <div class="form-group">
+                    <label>السعر للفرد:</label>
+                    <input type="number" value="0" class="opt-price" oninput="calculateAll()">
+                </div>
+                <div class="form-group">
+                    <label>التكلفة المباشرة:</label>
+                    <input type="number" value="0" class="opt-cost" oninput="calculateAll()">
+                </div>
+                <div class="form-group">
+                    <label>نسبة المرشد %:</label>
+                    <input type="number" value="20" class="opt-guide-pct" oninput="calculateAll()">
+                </div>
+                <div class="form-group">
+                    <label>عمولة المرشد:</label>
+                    <div class="comm-result-box opt-guide-comm-val">0.00</div>
+                </div>
+            </div>
+        `;
+        container.appendChild(optCard);
+        calculateAll();
+    }
+
+    function calculateAll() {
+        let totalOptComm = 0;
+        document.querySelectorAll('.opt-card-item').forEach(card => {
+            const pax = parseFloat(card.querySelector('.opt-pax').value) || 0;
+            const price = parseFloat(card.querySelector('.opt-price').value) || 0;
+            const cost = parseFloat(card.querySelector('.opt-cost').value) || 0;
+            const guidePct = (parseFloat(card.querySelector('.opt-guide-pct').value) || 0) / 100;
+
+            const netProfit = (pax * price) - cost;
+            const guideComm = netProfit > 0 ? netProfit * guidePct : 0;
+            card.querySelector('.opt-guide-comm-val').innerText = guideComm.toFixed(2);
+            totalOptComm += guideComm;
+        });
+
+        const floatVal = parseFloat(document.getElementById('floatEgp').value) || 0;
+        const lunch = parseFloat(document.getElementById('lunchEgp').value) || 0;
+        const tips = parseFloat(document.getElementById('tipsEgp').value) || 0;
+        const parking = parseFloat(document.getElementById('parkingEgp').value) || 0;
+        const fee = parseFloat(document.getElementById('feeEgp').value) || 0;
+
+        const totalDue = floatVal + totalOptComm;
+        const totalExp = lunch + tips + parking + fee;
+        const net = totalDue - totalExp;
+
+        document.getElementById('totalDueEgp').innerText = totalDue.toFixed(2) + ' EGP';
+        document.getElementById('totalExpEgp').innerText = totalExp.toFixed(2) + ' EGP';
+
+        const netElem = document.getElementById('netEgp');
+        netElem.innerText = net.toFixed(2) + ' EGP';
+        netElem.className = net >= 0 ? 'positive' : 'negative';
+    }
+
+    async function submitSettlement() {
+        const guideName = document.getElementById('guideInput').value.trim();
+        const fileNo = document.getElementById('fileNo').value.trim();
+
+        if (!guideName || !fileNo) {
+            alert("⚠️ يرجى كتابة اسم المرشد ورقم الملف قبل إرسال التصفية!");
+            return;
+        }
+
+        const formData = {
+            id: Date.now(),
+            guideName: guideName,
+            fileNo: fileNo,
+            date: new Date().toLocaleDateString('ar-EG'),
+            floatEgp: parseFloat(document.getElementById('floatEgp').value) || 0,
+            floatNotes: document.getElementById('floatNotes').value,
+            lunchEgp: parseFloat(document.getElementById('lunchEgp').value) || 0,
+            lunchNotes: document.getElementById('lunchNotes').value,
+            tipsEgp: parseFloat(document.getElementById('tipsEgp').value) || 0,
+            tipsNotes: document.getElementById('tipsNotes').value,
+            parkingEgp: parseFloat(document.getElementById('parkingEgp').value) || 0,
+            parkingNotes: document.getElementById('parkingNotes').value,
+            feeEgp: parseFloat(document.getElementById('feeEgp').value) || 0,
+            feeNotes: document.getElementById('feeNotes').value,
+            shops: [],
+            optionals: [],
+            totalDue: document.getElementById('totalDueEgp').innerText,
+            totalExp: document.getElementById('totalExpEgp').innerText,
+            netAmount: document.getElementById('netEgp').innerText
+        };
+
+        document.querySelectorAll('.shop-card-item').forEach(card => {
+            formData.shops.push({
+                name: card.querySelector('.shop-name').value,
+                sales: card.querySelector('.shop-sales').value,
+                curr: card.querySelector('.shop-curr').value
+            });
+        });
+
+        document.querySelectorAll('.opt-card-item').forEach(card => {
+            formData.optionals.push({
+                name: card.querySelector('.opt-name').value,
+                pax: card.querySelector('.opt-pax').value,
+                price: card.querySelector('.opt-price').value,
+                cost: card.querySelector('.opt-cost').value,
+                guidePct: card.querySelector('.opt-guide-pct').value,
+                comm: card.querySelector('.opt-guide-comm-val').innerText
+            });
+        });
+
+        cloudData.pending.push(formData);
+        await saveCloudData();
+
+        alert("✅ تم إرسال التصفية بنجاح إلى المراجعة وستظهر في الكمبيوتر فوراً!");
+        document.getElementById('settlementForm').reset();
+        document.getElementById('shopsContainer').innerHTML = '';
+        document.getElementById('optionalContainer').innerHTML = '';
+        calculateAll();
+    }
+
+    function renderReviewTable() {
+        const tbody = document.getElementById('reviewTableBody');
+        tbody.innerHTML = '';
+
+        if (!cloudData.pending || cloudData.pending.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8">لا توجد طلبات قيد المراجعة حالياً.</td></tr>`;
+            return;
+        }
+
+        cloudData.pending.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${item.guideName}</b></td>
+                <td>${item.fileNo}</td>
+                <td>${item.date}</td>
+                <td>${item.totalDue}</td>
+                <td>${item.totalExp}</td>
+                <td><b>${item.netAmount}</b></td>
+                <td><button class="btn btn-info" onclick="openDetailsModal(${item.id}, 'pending')">👁️ عرض</button></td>
+                <td>
+                    <button class="btn btn-submit" style="padding:4px 8px; font-size:0.85em;" onclick="approveItem(${index})">اعتماد ✅</button>
+                    <button class="btn btn-danger" style="padding:4px 8px; font-size:0.85em;" onclick="rejectItem(${index})">رفض ❌</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function approveItem(index) {
+        if (!confirm("هل أنت تأكد من اعتماد هذه التصفية وتحويلها للأرشيف؟")) return;
+        let item = cloudData.pending.splice(index, 1)[0];
+        item.status = "معتمد";
+        item.finalDate = new Date().toLocaleDateString('ar-EG');
+        cloudData.archive.push(item);
+        await saveCloudData();
+    }
+
+    async function rejectItem(index) {
+        if (!confirm("هل أنت تأكد من رفض هذه التصفية؟")) return;
+        let item = cloudData.pending.splice(index, 1)[0];
+        item.status = "مرفوض";
+        item.finalDate = new Date().toLocaleDateString('ar-EG');
+        cloudData.archive.push(item);
+        await saveCloudData();
+    }
+
+    function renderArchiveTable() {
+        const tbody = document.getElementById('archiveTableBody');
+        tbody.innerHTML = '';
+
+        const filterText = document.getElementById('archiveFilterInput').value.toLowerCase();
+        const statusFilter = document.getElementById('archiveStatusFilter').value;
+
+        let filtered = (cloudData.archive || []).filter(item => {
+            const matchesText = item.guideName.toLowerCase().includes(filterText) || item.fileNo.toLowerCase().includes(filterText);
+            const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter;
+            return matchesText && matchesStatus;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9">لا توجد تصفيات مؤرشفة تطابق البحث.</td></tr>`;
+            document.getElementById('totalGuideFeesSum').innerText = '0.00 EGP';
+            return;
+        }
+
+        let totalFees = 0;
+
+        filtered.forEach(item => {
+            totalFees += parseFloat(item.feeEgp) || 0;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${item.guideName}</b></td>
+                <td>${item.fileNo}</td>
+                <td>${item.finalDate || item.date}</td>
+                <td>${(item.feeEgp || 0).toFixed(2)} EGP</td>
+                <td>${item.totalDue}</td>
+                <td>${item.totalExp}</td>
+                <td><b>${item.netAmount}</b></td>
+                <td class="${item.status === 'معتمد' ? 'status-approved' : 'status-rejected'}">${item.status}</td>
+                <td><button class="btn btn-info" onclick="openDetailsModal(${item.id}, 'archive')">👁️ التفاصيل</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('totalGuideFeesSum').innerText = totalFees.toFixed(2) + ' EGP';
+    }
+
+    function openDetailsModal(id, source) {
+        let list = source === 'pending' ? cloudData.pending : cloudData.archive;
+        let item = list.find(x => x.id === id);
+        if (!item) return;
+
+        currentModalFileNo = item.fileNo || "Settlement";
+
+        let html = `
+            <p><b>اسم المرشد:</b> ${item.guideName} | <b>رقم الملف:</b> ${item.fileNo} | <b>التاريخ:</b> ${item.date}</p>
+            <hr style="border-color: var(--border-vintage);">
+            <h4>العهدة والمصروفات:</h4>
+            <ul>
+                <li>العهدة المستلمة: ${item.floatEgp} EGP (${item.floatNotes || 'لا توجد ملاحظات'})</li>
+                <li>مصاريف الغداء: ${item.lunchEgp} EGP (${item.lunchNotes || 'لا توجد ملاحظات'})</li>
+                <li>الإكراميات: ${item.tipsEgp} EGP (${item.tipsNotes || 'لا توجد ملاحظات'})</li>
+                <li>الباركينج: ${item.parkingEgp} EGP (${item.parkingNotes || 'لا توجد ملاحظات'})</li>
+                <li>أتعاب المرشد: ${item.feeEgp} EGP (${item.feeNotes || 'لا توجد ملاحظات'})</li>
+            </ul>
+            <hr style="border-color: var(--border-vintage);">
+            <h4>الإجماليات والصافي:</h4>
+            <p><b>ما بذمة المرشد:</b> ${item.totalDue} | <b>المصروفات:</b> ${item.totalExp}</p>
+            <p style="font-size: 1.2em;"><b>الصافي النهائي:</b> <span class="positive">${item.netAmount}</span></p>
+        `;
+
+        document.getElementById('modalContent').innerHTML = html;
+        document.getElementById('detailsModal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('detailsModal').classList.remove('active');
+    }
+
+    function downloadModalPDF() {
+        const element = document.getElementById('pdfExportArea');
+        const opt = {
+            margin:       0.5,
+            filename:     `Report_${currentModalFileNo}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
+    }
+
+    function exportBackupData() {
+        if (!cloudData.archive || cloudData.archive.length === 0) {
+            alert("⚠️ لا توجد بيانات أرشيف متوفرة للتصدير حالياً!");
+            return;
+        }
+
+        const headers = [
+            "اسم المرشد", "رقم الملف", "تاريخ الحسم", "العهدة (EGP)", 
+            "أتعاب المرشد (EGP)", "مصاريف غداء", "إكراميات", "باركينج ورسوم", 
+            "إجمالي ما بذمته", "إجمالي المصروفات", "الصافي النهائي", "حالة الطلب"
+        ];
+
+        const rows = cloudData.archive.map(item => [
+            item.guideName || "",
+            item.fileNo || "",
+            item.finalDate || item.date || "",
+            item.floatEgp || 0,
+            item.feeEgp || 0,
+            item.lunchEgp || 0,
+            item.tipsEgp || 0,
+            item.parkingEgp || 0,
+            item.totalDue || "",
+            item.totalExp || "",
+            item.netAmount || "",
+            item.status || ""
+        ]);
+
+        const data = [headers, ...rows];
+        const worksheet = XLSX.utils.aoa_to_sheet(data);
+
+        const headerStyle = {
+            font: { bold: true, color: { rgb: "000000" }, name: "Calibri", sz: 11 },
+            fill: { fgColor: { rgb: "87CEEB" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+                top: { style: "thin", color: { rgb: "A89478" } },
+                bottom: { style: "thin", color: { rgb: "A89478" } },
+                left: { style: "thin", color: { rgb: "A89478" } },
+                right: { style: "thin", color: { rgb: "A89478" } }
+            }
+        };
+
+        const cellStyle = {
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+                top: { style: "thin", color: { rgb: "E0E0E0" } },
+                bottom: { style: "thin", color: { rgb: "E0E0E0" } },
+                left: { style: "thin", color: { rgb: "E0E0E0" } },
+                right: { style: "thin", color: { rgb: "E0E0E0" } }
+            }
+        };
+
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cell_address = XLSX.utils.encode_cell({ r: R, c: C });
+                if (!worksheet[cell_address]) continue;
+
+                if (R === 0) {
+                    worksheet[cell_address].s = headerStyle;
+                } else {
+                    worksheet[cell_address].s = cellStyle;
+                }
+            }
+        }
+
+        const colWidths = headers.map(() => ({ wch: 18 }));
+        worksheet['!cols'] = colWidths;
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "الأرشيف");
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(workbook, `Archive_Settlements_${dateStr}.xlsx`);
+    }
+
     window.onload = function() {
         initRealtimeSync();
     };
 </script>
+
 </body>
 </html>
