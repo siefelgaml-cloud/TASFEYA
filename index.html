@@ -167,6 +167,23 @@
             align-items: center; flex-wrap: wrap;
         }
 
+        /* تنسيق منطقة رفع ومعاينة المرفقات */
+        .attachments-preview-container {
+            display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;
+        }
+        .attachment-thumb-box {
+            position: relative; width: 80px; height: 80px; border: 1px solid var(--border-vintage);
+            border-radius: 4px; overflow: hidden; background: #fff;
+        }
+        .attachment-thumb-box img {
+            width: 100%; height: 100%; object-fit: cover; cursor: pointer;
+        }
+        .attachment-thumb-box .remove-btn {
+            position: absolute; top: 2px; right: 2px; background: rgba(168, 35, 35, 0.85);
+            color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px;
+            font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.65); display: none; justify-content: center;
@@ -315,6 +332,16 @@
                     <div id="optionalContainer"></div>
                 </div>
 
+                <!-- قسم إرفاق الفواتير والملفات الجديد -->
+                <div class="card">
+                    <h3>📎 إرفاق الفواتير والصور الإيضاحية</h3>
+                    <div class="form-group">
+                        <label>حدد الصور أو الفواتير من الهاتف / الكمبيوتر:</label>
+                        <input type="file" id="fileAttachmentInput" accept="image/*" multiple onchange="handleFileSelect(event)">
+                    </div>
+                    <div id="attachmentsPreview" class="attachments-preview-container"></div>
+                </div>
+
                 <div class="card summary-card">
                     <h3>صافي التصفية النهائي (EGP)</h3>
                     <div class="table-responsive">
@@ -444,49 +471,75 @@
     const SECRET_PIN = "991997";
     const STORAGE_KEY = "tafseya_app_permanent_db";
 
-    // إعدادات Firebase المفتوحة للمزامنة المباشرة
     const firebaseConfig = {
         databaseURL: "https://tafseya-system-default-rtdb.europe-west1.firebasedatabase.app/"
     };
     
-    // تهيئة السيرفر المباشر
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
+    let db = null;
+    if (typeof firebase !== 'undefined') {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.database();
     }
-    const db = firebase.database();
 
-    let cloudData = { pending: [], archive: [] };
+    let localBackup = { pending: [], archive: [] };
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) localBackup = JSON.parse(saved);
+    } catch(e) {
+        console.error("Local storage error:", e);
+    }
+
+    let cloudData = {
+        pending: localBackup.pending || [],
+        archive: localBackup.archive || []
+    };
+    
     let currentModalFileNo = "Settlement";
+    let attachedFilesBase64 = []; // لتخزين الصور المحولة كـ Base64
 
-    // الاستماع اللحظي للبيانات من أي هاتف أو كمبيوتر في نفس الوقت
     function initRealtimeSync() {
-        db.ref('tafseya_data').on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                cloudData.pending = data.pending || [];
-                cloudData.archive = data.archive || [];
-            } else {
-                cloudData = { pending: [], archive: [] };
-            }
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
+        if (db) {
+            db.ref('tafseya_data').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    cloudData.pending = data.pending || [];
+                    cloudData.archive = data.archive || [];
+                } else {
+                    cloudData = { pending: [], archive: [] };
+                }
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
+                renderReviewTable();
+                renderArchiveTable();
+                updateBadge();
+            }, (error) => {
+                console.warn("تعذر الاتصال بـ Firebase، التبديل للتخزين المحلي:", error);
+                renderReviewTable();
+                renderArchiveTable();
+                updateBadge();
+            });
+        } else {
             renderReviewTable();
             renderArchiveTable();
             updateBadge();
-        });
+        }
     }
 
-    // حفظ البيانات في القاعدة اللحظية الموحدة
     async function saveCloudData() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
-        try {
-            await db.ref('tafseya_data').set(cloudData);
-        } catch (e) {
-            console.error("خطأ التحديث اللحظي:", e);
+        if (db) {
+            try {
+                await db.ref('tafseya_data').set(cloudData);
+            } catch (e) {
+                console.error("خطأ التحديث اللحظي:", e);
+            }
         }
     }
 
     function updateBadge() {
         const badge = document.getElementById('reviewBadge');
+        if (!badge) return;
         const count = cloudData.pending ? cloudData.pending.length : 0;
         if (count > 0) {
             badge.innerText = count;
@@ -514,6 +567,40 @@
 
         if (tabId === 'tab-review') renderReviewTable();
         if (tabId === 'tab-archive') renderArchiveTable();
+    }
+
+    /* معالجة وتحويل المرفقات والصور */
+    function handleFileSelect(event) {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                attachedFilesBase64.push(e.target.result);
+                renderAttachmentsPreview();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function renderAttachmentsPreview() {
+        const container = document.getElementById('attachmentsPreview');
+        container.innerHTML = '';
+        attachedFilesBase64.forEach((base64Src, idx) => {
+            const box = document.createElement('div');
+            box.className = 'attachment-thumb-box';
+            box.innerHTML = `
+                <img src="${base64Src}" onclick="window.open('${base64Src}', '_blank')">
+                <button type="button" class="remove-btn" onclick="removeAttachment(${idx})">×</button>
+            `;
+            container.appendChild(box);
+        });
+    }
+
+    function removeAttachment(index) {
+        attachedFilesBase64.splice(index, 1);
+        renderAttachmentsPreview();
     }
 
     let shopCounter = 0;
@@ -646,6 +733,7 @@
             feeNotes: document.getElementById('feeNotes').value,
             shops: [],
             optionals: [],
+            attachments: [...attachedFilesBase64], // حفظ صور الفواتير المرفقة
             totalDue: document.getElementById('totalDueEgp').innerText,
             totalExp: document.getElementById('totalExpEgp').innerText,
             netAmount: document.getElementById('netEgp').innerText
@@ -670,18 +758,23 @@
             });
         });
 
+        if (!cloudData.pending) cloudData.pending = [];
         cloudData.pending.push(formData);
         await saveCloudData();
 
-        alert("✅ تم إرسال التصفية بنجاح إلى المراجعة وستظهر في الكمبيوتر فوراً!");
+        alert("✅ تم إرسال التصفية والمرفقات بنجاح إلى المراجعة!");
         document.getElementById('settlementForm').reset();
         document.getElementById('shopsContainer').innerHTML = '';
         document.getElementById('optionalContainer').innerHTML = '';
+        attachedFilesBase64 = [];
+        renderAttachmentsPreview();
         calculateAll();
+        updateBadge();
     }
 
     function renderReviewTable() {
         const tbody = document.getElementById('reviewTableBody');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
         if (!cloudData.pending || cloudData.pending.length === 0) {
@@ -713,8 +806,11 @@
         let item = cloudData.pending.splice(index, 1)[0];
         item.status = "معتمد";
         item.finalDate = new Date().toLocaleDateString('ar-EG');
+        if (!cloudData.archive) cloudData.archive = [];
         cloudData.archive.push(item);
         await saveCloudData();
+        renderReviewTable();
+        updateBadge();
     }
 
     async function rejectItem(index) {
@@ -722,26 +818,33 @@
         let item = cloudData.pending.splice(index, 1)[0];
         item.status = "مرفوض";
         item.finalDate = new Date().toLocaleDateString('ar-EG');
+        if (!cloudData.archive) cloudData.archive = [];
         cloudData.archive.push(item);
         await saveCloudData();
+        renderReviewTable();
+        updateBadge();
     }
 
     function renderArchiveTable() {
         const tbody = document.getElementById('archiveTableBody');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
-        const filterText = document.getElementById('archiveFilterInput').value.toLowerCase();
-        const statusFilter = document.getElementById('archiveStatusFilter').value;
+        const filterInput = document.getElementById('archiveFilterInput');
+        const filterText = filterInput ? filterInput.value.toLowerCase() : '';
+        const statusFilterElem = document.getElementById('archiveStatusFilter');
+        const statusFilter = statusFilterElem ? statusFilterElem.value : 'ALL';
 
         let filtered = (cloudData.archive || []).filter(item => {
-            const matchesText = item.guideName.toLowerCase().includes(filterText) || item.fileNo.toLowerCase().includes(filterText);
+            const matchesText = (item.guideName || '').toLowerCase().includes(filterText) || (item.fileNo || '').toLowerCase().includes(filterText);
             const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter;
             return matchesText && matchesStatus;
         });
 
         if (filtered.length === 0) {
             tbody.innerHTML = `<tr><td colspan="9">لا توجد تصفيات مؤرشفة تطابق البحث.</td></tr>`;
-            document.getElementById('totalGuideFeesSum').innerText = '0.00 EGP';
+            const totalSumElem = document.getElementById('totalGuideFeesSum');
+            if (totalSumElem) totalSumElem.innerText = '0.00 EGP';
             return;
         }
 
@@ -764,7 +867,8 @@
             tbody.appendChild(tr);
         });
 
-        document.getElementById('totalGuideFeesSum').innerText = totalFees.toFixed(2) + ' EGP';
+        const totalSumElem = document.getElementById('totalGuideFeesSum');
+        if (totalSumElem) totalSumElem.innerText = totalFees.toFixed(2) + ' EGP';
     }
 
     function openDetailsModal(id, source) {
@@ -785,6 +889,33 @@
                 <li>الباركينج: ${item.parkingEgp} EGP (${item.parkingNotes || 'لا توجد ملاحظات'})</li>
                 <li>أتعاب المرشد: ${item.feeEgp} EGP (${item.feeNotes || 'لا توجد ملاحظات'})</li>
             </ul>
+        `;
+
+        if (item.shops && item.shops.length > 0) {
+            html += `<hr style="border-color: var(--border-vintage);"><h4>مبيعات المحلات:</h4><ul>`;
+            item.shops.forEach(s => {
+                html += `<li>${s.name || 'محل'}: ${s.sales} ${s.curr}</li>`;
+            });
+            html += `</ul>`;
+        }
+
+        if (item.optionals && item.optionals.length > 0) {
+            html += `<hr style="border-color: var(--border-vintage);"><h4>الرحلات الاختيارية:</h4><ul>`;
+            item.optionals.forEach(o => {
+                html += `<li>${o.name || 'رحلة'}: ${o.pax} أفراد × ${o.price} = إجمالي ${o.pax * o.price} | عمولة المرشد: ${o.comm} EGP</li>`;
+            });
+            html += `</ul>`;
+        }
+
+        if (item.attachments && item.attachments.length > 0) {
+            html += `<hr style="border-color: var(--border-vintage);"><h4>🖼️ المرفقات والفواتير المصورة:</h4><div style="display:flex; gap:10px; flex-wrap:wrap;">`;
+            item.attachments.forEach(imgBase64 => {
+                html += `<div style="width:100px; height:100px; border:1px solid var(--border-vintage); border-radius:4px; overflow:hidden;"><img src="${imgBase64}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="window.open('${imgBase64}', '_blank')"></div>`;
+            });
+            html += `</div>`;
+        }
+
+        html += `
             <hr style="border-color: var(--border-vintage);">
             <h4>الإجماليات والصافي:</h4>
             <p><b>ما بذمة المرشد:</b> ${item.totalDue} | <b>المصروفات:</b> ${item.totalExp}</p>
@@ -800,6 +931,10 @@
     }
 
     function downloadModalPDF() {
+        if (typeof html2pdf === 'undefined') {
+            alert("⚠️ مكتبة PDF غير متوفرة حالياً!");
+            return;
+        }
         const element = document.getElementById('pdfExportArea');
         const opt = {
             margin:       0.5,
@@ -814,6 +949,11 @@
     function exportBackupData() {
         if (!cloudData.archive || cloudData.archive.length === 0) {
             alert("⚠️ لا توجد بيانات أرشيف متوفرة للتصدير حالياً!");
+            return;
+        }
+
+        if (typeof XLSX === 'undefined') {
+            alert("⚠️ مكتبة Excel غير متوفرة حالياً!");
             return;
         }
 
