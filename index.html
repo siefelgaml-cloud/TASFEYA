@@ -124,7 +124,7 @@
 
         .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
         .form-group { display: flex; flex-direction: column; gap: 6px; }
-        label { font-weight: bold; font-size: 1.05em; color: var(--primary-navy); }
+        label { font-weight: bold; font-size: 1.05em; color: var(--primary-navy); unicode-bidi: plaintext; }
 
         input, select {
             padding: 9px 12px; border: 1px solid var(--border-vintage); background-color: #fdfbf7;
@@ -140,7 +140,7 @@
 
         .table-responsive { width: 100%; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; min-width: 600px; }
-        th, td { border: 1px solid var(--border-vintage); padding: 10px 12px; text-align: center; font-size: 1.05em; }
+        th, td { border: 1px solid var(--border-vintage); padding: 10px 12px; text-align: center; font-size: 1.05em; unicode-bidi: plaintext; }
         th { background-color: #e8dbca; color: var(--primary-navy); font-weight: bold; border-bottom: 2px solid var(--vintage-gold-dark); }
         tfoot td { background-color: #e8dbca; font-weight: bold; color: var(--primary-navy); border-top: 2px solid var(--vintage-gold-dark); }
 
@@ -274,11 +274,11 @@
                     <h3>بيانات الرحلة والمرشد</h3>
                     <div class="grid-2">
                         <div class="form-group">
-                            <label>اسم المرشد: <span style="color:var(--red)">*</span></label>
+                            <label>اسم المرشد:&rlm; <span style="color:var(--red)">*</span></label>
                             <input type="text" id="guideInput" placeholder="اكتب اسم المرشد هنا..." required>
                         </div>
                         <div class="form-group">
-                            <label>رقم الملف: <span style="color:var(--red)">*</span></label>
+                            <label>رقم الملف:&rlm; <span style="color:var(--red)">*</span></label>
                             <input type="text" id="fileNo" placeholder="مثال: FL-2026-102" required>
                         </div>
                     </div>
@@ -347,7 +347,7 @@
                 <div class="card">
                     <h3>📎 إرفاق الفواتير والصور الإيضاحية</h3>
                     <div class="form-group">
-                        <label>حدد الصور أو الفواتير من الهاتف / الكمبيوتر:</label>
+                        <label>حدد الصور أو الفواتير من الهاتف / الكمبيوتر:&rlm;</label>
                         <input type="file" id="fileAttachmentInput" accept="image/*" multiple onchange="handleFileSelect(event)">
                     </div>
                     <div id="attachmentsPreview" class="attachments-preview-container"></div>
@@ -419,11 +419,11 @@
                 
                 <div class="filter-bar no-print">
                     <div class="form-group" style="flex: 2; min-width:200px;">
-                        <label>🔍 فلترة باسم المرشد أو رقم الملف:</label>
+                        <label>🔍 فلترة باسم المرشد أو رقم الملف:&rlm;</label>
                         <input type="text" id="archiveFilterInput" placeholder="اكتب اسم المرشد أو رقم الملف..." oninput="renderArchiveTable()">
                     </div>
                     <div class="form-group" style="flex: 1; min-width:130px;">
-                        <label>الحالة:</label>
+                        <label>الحالة:&rlm;</label>
                         <select id="archiveStatusFilter" onchange="renderArchiveTable()">
                             <option value="ALL">الكل</option>
                             <option value="معتمد">معتمد ✅</option>
@@ -450,7 +450,7 @@
                         <tbody id="archiveTableBody"></tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="3"><b>الإجمالي العام للصفوف المعروضة:</b></td>
+                                <td colspan="3"><b>الإجمالي العام للصفوف المعروضة:&rlm;</b></td>
                                 <td id="totalGuideFeesSum">0.00 EGP</td>
                                 <td colspan="5"></td>
                             </tr>
@@ -582,7 +582,7 @@
 
     function switchTab(tabId) {
         if (tabId === 'tab-review' || tabId === 'tab-archive') {
-            const userPin = prompt("🔒 هذا القسم محمي برقم سري، يرجى إدخال رمز الدخول:");
+            const userPin = prompt("🔒 هذا القسم محمي برقم سري، يرجى إدخال رمز الدخول:&rlm;");
             if (userPin !== SECRET_PIN) {
                 if (userPin !== null) alert("❌ الرقم السري غير صحيح!");
                 return;
@@ -666,15 +666,15 @@
             </div>
             <div class="vertical-grid-fields">
                 <div class="form-group" style="grid-column: span 2;">
-                    <label>اسم المحل:</label>
+                    <label>اسم المحل:&rlm;</label>
                     <input type="text" placeholder="مثال: محل برديات / عطور" class="shop-name">
                 </div>
                 <div class="form-group">
-                    <label>إجمالي المبيعات:</label>
+                    <label>إجمالي المبيعات:&rlm;</label>
                     <input type="number" value="0" class="shop-sales">
                 </div>
                 <div class="form-group">
-                    <label>العملة:</label>
+                    <label>العملة:&rlm;</label>
                     <select class="shop-curr"><option value="EGP">EGP</option></select>
                 </div>
             </div>
@@ -695,31 +695,31 @@
             </div>
             <div class="vertical-grid-fields">
                 <div class="form-group">
-                    <label>اسم الرحلة:</label>
+                    <label>اسم الرحلة:&rlm;</label>
                     <input type="text" class="opt-name" placeholder="اسم الرحلة...">
                 </div>
                 <div class="form-group">
-                    <label>عدد الأفراد:</label>
+                    <label>عدد الأفراد:&rlm;</label>
                     <input type="number" value="1" min="1" class="opt-pax" oninput="calculateOptionalCard(this)">
                 </div>
                 <div class="form-group">
-                    <label>سعر البيع للفرد ($):</label>
+                    <label>سعر البيع للفرد ($):&rlm;</label>
                     <input type="number" value="0" step="any" class="opt-price-usd" oninput="calculateOptionalCard(this)">
                 </div>
                 <div class="form-group">
-                    <label>إجمالي البيع ($):</label>
+                    <label>إجمالي البيع ($):&rlm;</label>
                     <div class="comm-result-box opt-total-usd">0.00 $</div>
                 </div>
                 <div class="form-group">
-                    <label>عمولة المرشد (%):</label>
+                    <label>عمولة المرشد (%):&rlm;</label>
                     <input type="number" value="30" readonly class="opt-comm-rate" style="background-color: #e9ecef; font-weight: bold; text-align: center;">
                 </div>
                 <div class="form-group">
-                    <label>تكلفة الفرد (EGP):</label>
+                    <label>تكلفة الفرد (EGP):&rlm;</label>
                     <input type="number" value="0" step="any" class="opt-cost-egp" oninput="calculateOptionalCard(this)">
                 </div>
                 <div class="form-group">
-                    <label>إجمالي التكلفة (EGP):</label>
+                    <label>إجمالي التكلفة (EGP):&rlm;</label>
                     <div class="comm-result-box opt-total-cost-egp">0.00 EGP</div>
                 </div>
             </div>
@@ -936,9 +936,9 @@
             <div style="background-color: var(--vintage-card); border: 1px solid var(--border-vintage); padding: 15px; border-radius: 4px; margin-bottom: 20px;">
                 <table style="width: 100%; min-width: auto; margin-top:0;">
                     <tr>
-                        <td style="width: 33%;"><b>اسم المرشد:</b> ${item.guideName}</td>
-                        <td style="width: 33%;"><b>رقم الملف:</b> ${item.fileNo}</td>
-                        <td style="width: 34%;"><b>التاريخ:</b> ${item.date}</td>
+                        <td style="width: 33%;"><b>اسم المرشد:&rlm;</b> ${item.guideName}</td>
+                        <td style="width: 33%;"><b>رقم الملف:&rlm;</b> ${item.fileNo}</td>
+                        <td style="width: 34%;"><b>التاريخ:&rlm;</b> ${item.date}</td>
                     </tr>
                 </table>
             </div>
