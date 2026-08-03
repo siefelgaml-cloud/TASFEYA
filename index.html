@@ -6,7 +6,7 @@
     <title>نظام تصفية واستحقاق حسابات المرشدين</title>
     <!-- مكتبة html2pdf لتصدير الملفات إلى PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <!-- مكتبة xlsx-js-style لتصدير البيانات إلى ملفات Excel -->
+    <!-- مكتبة xlsx-js-style لتصدير واستيراد البيانات من ملفات Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
     <!-- مكتبات Firebase للمزامنة اللحظية بين الهاتف والكمبيوتر -->
@@ -151,6 +151,8 @@
         .btn-pdf:hover { background-color: #9b2c2c; }
         .btn-excel { background-color: #1d6f42; border-color: #144e2e; color: white; }
         .btn-excel:hover { background-color: #155231; }
+        .btn-import { background-color: #d97706; border-color: #b45309; color: white; }
+        .btn-import:hover { background-color: #b45309; }
         .btn-danger { background-color: var(--red); border-color: #701010; color: white; padding: 4px 12px; font-size: 0.9em; }
         .btn-info { background-color: #2b6cb0; border-color: #1a4971; color: white; padding: 5px 12px; font-size: 0.95em; }
 
@@ -409,6 +411,8 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
                     <h3 style="margin-top:0;">سجل التصفيات المحسومة (الأرشيف)</h3>
                     <div class="no-print" style="display:flex; gap:8px; margin-bottom:10px;">
+                        <input type="file" id="importExcelInput" accept=".xlsx, .xls" style="display:none;" onchange="importBackupData(event)">
+                        <button class="btn btn-import" style="font-size:0.85em; padding:6px 12px;" onclick="document.getElementById('importExcelInput').click()">استيراد أكسيل Excel 📥</button>
                         <button class="btn btn-excel" style="font-size:0.85em; padding:6px 12px;" onclick="exportBackupData()">تصدير أكسيل Excel 📊</button>
                     </div>
                 </div>
@@ -1190,6 +1194,86 @@
 
         const dateStr = new Date().toISOString().slice(0, 10);
         XLSX.writeFile(workbook, `Archive_Settlements_${dateStr}.xlsx`);
+    }
+
+    // --- دالة استيراد ملفات Excel مع المزامنة مع Firebase ---
+    function importBackupData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (typeof XLSX === 'undefined') {
+            alert("⚠️ مكتبة Excel غير متوفرة حالياً!");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                if (jsonData.length <= 1) {
+                    alert("⚠️ الملف المرفق لا يحتوي على بيانات للتنسيق!");
+                    return;
+                }
+
+                const importedItems = [];
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    if (!row || row.length === 0 || !row[0]) continue;
+
+                    const floatEgp = parseFloat(row[3]) || 0;
+                    const feeEgp = parseFloat(row[4]) || 0;
+                    const lunchEgp = parseFloat(row[5]) || 0;
+                    const tipsEgp = parseFloat(row[6]) || 0;
+                    const parkingEgp = parseFloat(row[7]) || 0;
+                    
+                    const totalDueStr = typeof row[8] !== 'undefined' ? String(row[8]) : `${floatEgp.toFixed(2)} EGP`;
+                    const totalExpStr = typeof row[9] !== 'undefined' ? String(row[9]) : `${(lunchEgp + tipsEgp + parkingEgp + feeEgp).toFixed(2)} EGP`;
+                    const netAmountStr = typeof row[10] !== 'undefined' ? String(row[10]) : `${(floatEgp - (lunchEgp + tipsEgp + parkingEgp + feeEgp)).toFixed(2)} EGP`;
+
+                    importedItems.push({
+                        id: Date.now() + i,
+                        guideName: String(row[0] || ''),
+                        fileNo: String(row[1] || ''),
+                        date: String(row[2] || new Date().toLocaleDateString('ar-EG')),
+                        finalDate: String(row[2] || new Date().toLocaleDateString('ar-EG')),
+                        floatEgp: floatEgp,
+                        feeEgp: feeEgp,
+                        lunchEgp: lunchEgp,
+                        tipsEgp: tipsEgp,
+                        parkingEgp: parkingEgp,
+                        totalDue: totalDueStr.includes('EGP') ? totalDueStr : `${totalDueStr} EGP`,
+                        totalExp: totalExpStr.includes('EGP') ? totalExpStr : `${totalExpStr} EGP`,
+                        netAmount: netAmountStr.includes('EGP') ? netAmountStr : `${netAmountStr} EGP`,
+                        status: String(row[11] || 'معتمد'),
+                        shops: [],
+                        optionals: [],
+                        attachments: []
+                    });
+                }
+
+                if (importedItems.length === 0) {
+                    alert("⚠️ لم يتم العثور على أي بيانات صالحة للاستيراد داخل الملف!");
+                    return;
+                }
+
+                if (!cloudData.archive) cloudData.archive = [];
+                cloudData.archive.push(...importedItems);
+                await saveCloudData();
+
+                alert(`✅ تم استيراد ${importedItems.length} سجل بنجاح وحفظهم بالأرشيف والمزامنة!`);
+                renderArchiveTable();
+                event.target.value = '';
+            } catch (err) {
+                console.error("خطأ أثناء استيراد البيانات:", err);
+                alert("❌ حدث خطأ أثناء قراءة ملف Excel، يرجى التأكد من تنسيق الملف!");
+            }
+        };
+        reader.readAsArrayBuffer(file);
     }
 
     window.onload = function() {
