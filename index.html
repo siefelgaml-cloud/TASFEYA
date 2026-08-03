@@ -201,6 +201,15 @@
             border-radius: 50%; cursor: pointer; font-weight: bold;
         }
 
+        table, tr, td, th, .card, .vertical-item-card {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        h1, h2, h3, h4 {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+        }
+
         @media screen and (max-width: 768px) {
             body { flex-direction: column; }
             body::before { display: none; }
@@ -315,7 +324,7 @@
                     </div>
                 </div>
 
-                <!-- قسم الرحلات الاختيارية (أولاً) -->
+                <!-- قسم الرحلات الاختيارية -->
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:10px;">
                         <h3 style="margin:0;">الرحلات الاختيارية (Optional Tours)</h3>
@@ -324,7 +333,7 @@
                     <div id="optionalContainer"></div>
                 </div>
 
-                <!-- قسم مبيعات المحلات (ثانياً) -->
+                <!-- قسم مبيعات المحلات -->
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:10px;">
                         <h3 style="margin:0;">مبيعات المحلات (Shops)</h3>
@@ -349,7 +358,7 @@
                             <thead>
                                 <tr>
                                     <th>إجمالي ما بذمة المرشد</th>
-                                    <th>إجمالي المصروفات والأتعاب</th>
+                                    <th>إجمالي المصروفات</th>
                                     <th>الصافي النهائي</th>
                                 </tr>
                             </thead>
@@ -620,7 +629,7 @@
                 </div>
                 <div class="form-group">
                     <label>إجمالي المبيعات:</label>
-                    <input type="number" value="0" class="shop-sales" oninput="calculateAll()">
+                    <input type="number" value="0" class="shop-sales">
                 </div>
                 <div class="form-group">
                     <label>العملة:</label>
@@ -629,7 +638,6 @@
             </div>
         `;
         container.appendChild(shopCard);
-        calculateAll();
     }
 
     let optionalCounter = 0;
@@ -641,7 +649,7 @@
         optCard.innerHTML = `
             <div class="vertical-card-header">
                 <span><b>الرحلة الاختيارية #${optionalCounter}</b></span>
-                <button type="button" class="btn btn-danger no-print" onclick="this.parentElement.parentElement.remove(); calculateAll();">حذف</button>
+                <button type="button" class="btn btn-danger no-print" onclick="this.parentElement.parentElement.remove();">حذف</button>
             </div>
             <div class="vertical-grid-fields">
                 <div class="form-group">
@@ -650,11 +658,11 @@
                 </div>
                 <div class="form-group">
                     <label>عدد الأفراد:</label>
-                    <input type="number" value="1" min="1" class="opt-pax" oninput="calculateAll()">
+                    <input type="number" value="1" min="1" class="opt-pax" oninput="calculateOptionalCard(this)">
                 </div>
                 <div class="form-group">
                     <label>سعر البيع للفرد ($):</label>
-                    <input type="number" value="0" step="any" class="opt-price-usd" oninput="calculateAll()">
+                    <input type="number" value="0" step="any" class="opt-price-usd" oninput="calculateOptionalCard(this)">
                 </div>
                 <div class="form-group">
                     <label>إجمالي البيع ($):</label>
@@ -666,7 +674,7 @@
                 </div>
                 <div class="form-group">
                     <label>تكلفة الفرد (EGP):</label>
-                    <input type="number" value="0" step="any" class="opt-cost-egp" oninput="calculateAll()">
+                    <input type="number" value="0" step="any" class="opt-cost-egp" oninput="calculateOptionalCard(this)">
                 </div>
                 <div class="form-group">
                     <label>إجمالي التكلفة (EGP):</label>
@@ -675,30 +683,36 @@
             </div>
         `;
         container.appendChild(optCard);
-        calculateAll();
     }
 
+    function calculateOptionalCard(elem) {
+        const card = elem.closest('.opt-card-item');
+        if (!card) return;
+        const pax = parseFloat(card.querySelector('.opt-pax').value) || 0;
+        const priceUsd = parseFloat(card.querySelector('.opt-price-usd').value) || 0;
+        const costEgp = parseFloat(card.querySelector('.opt-cost-egp').value) || 0;
+
+        const totalUsd = pax * priceUsd;
+        card.querySelector('.opt-total-usd').innerText = totalUsd.toFixed(2) + ' $';
+
+        const totalCostEgp = pax * costEgp;
+        card.querySelector('.opt-total-cost-egp').innerText = totalCostEgp.toFixed(2) + ' EGP';
+    }
+
+    // --- دالة الحساب المحاسبية المحدّثة بناءً على طلبك ---
     function calculateAll() {
-        document.querySelectorAll('.opt-card-item').forEach(card => {
-            const pax = parseFloat(card.querySelector('.opt-pax').value) || 0;
-            const priceUsd = parseFloat(card.querySelector('.opt-price-usd').value) || 0;
-            const costEgp = parseFloat(card.querySelector('.opt-cost-egp').value) || 0;
+        // 1. إجمالي ما بذمة المرشد = العهدة المستلمة فقط
+        const totalDue = parseFloat(document.getElementById('floatEgp').value) || 0;
 
-            const totalUsd = pax * priceUsd;
-            card.querySelector('.opt-total-usd').innerText = totalUsd.toFixed(2) + ' $';
-
-            const totalCostEgp = pax * costEgp;
-            card.querySelector('.opt-total-cost-egp').innerText = totalCostEgp.toFixed(2) + ' EGP';
-        });
-
-        const floatVal = parseFloat(document.getElementById('floatEgp').value) || 0;
+        // 2. إجمالي المصروفات = المصروفات المباشرة (غداء + إكراميات + باركينج) + أتعاب المرشد (اليومية)
         const lunch = parseFloat(document.getElementById('lunchEgp').value) || 0;
         const tips = parseFloat(document.getElementById('tipsEgp').value) || 0;
         const parking = parseFloat(document.getElementById('parkingEgp').value) || 0;
         const fee = parseFloat(document.getElementById('feeEgp').value) || 0;
 
-        const totalDue = floatVal;
         const totalExp = lunch + tips + parking + fee;
+
+        // 3. الصافي النهائي = إجمالي ما بذمة المرشد - إجمالي المصروفات
         const net = totalDue - totalExp;
 
         document.getElementById('totalDueEgp').innerText = totalDue.toFixed(2) + ' EGP';
@@ -1010,7 +1024,7 @@
                     <thead>
                         <tr>
                             <th>إجمالي ما بذمة المرشد</th>
-                            <th>إجمالي المصروفات والأتعاب</th>
+                            <th>إجمالي المصروفات</th>
                             <th>الصافي النهائي</th>
                         </tr>
                     </thead>
@@ -1053,11 +1067,12 @@
         }
         const element = document.getElementById('pdfExportArea');
         const opt = {
-            margin:       0.5,
+            margin:       [10, 10, 10, 10],
             filename:     `Report_${currentModalFileNo}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2 },
-            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+            html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
         };
         html2pdf().set(opt).from(element).save();
     }
