@@ -321,6 +321,11 @@
                                     <td><input type="number" id="feeEgp" value="0" step="any" oninput="calculateAll()"></td>
                                     <td><input type="text" id="feeNotes" placeholder="عدد الأيام / تفاصيل يومية الإرشاد..."></td>
                                 </tr>
+                                <tr>
+                                    <td>مصروفات أخرى</td>
+                                    <td><input type="number" id="otherEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="text" id="otherNotes" placeholder="تفاصيل المصروفات الأخرى..."></td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -512,7 +517,6 @@
     let currentModalFileNo = "Settlement";
     let attachedFilesBase64 = [];
 
-    // --- دالة فتح المرفقات بأمان بدلاً من about:blank ---
     function openBase64Image(dataUrl) {
         try {
             fetch(dataUrl)
@@ -748,8 +752,9 @@
         const tips = parseFloat(document.getElementById('tipsEgp').value) || 0;
         const parking = parseFloat(document.getElementById('parkingEgp').value) || 0;
         const fee = parseFloat(document.getElementById('feeEgp').value) || 0;
+        const other = parseFloat(document.getElementById('otherEgp').value) || 0;
 
-        const totalExp = lunch + tips + parking + fee;
+        const totalExp = lunch + tips + parking + fee + other;
         const net = totalDue - totalExp;
 
         document.getElementById('totalDueEgp').innerText = totalDue.toFixed(2) + ' EGP';
@@ -784,6 +789,8 @@
             parkingNotes: document.getElementById('parkingNotes').value,
             feeEgp: parseFloat(document.getElementById('feeEgp').value) || 0,
             feeNotes: document.getElementById('feeNotes').value,
+            otherEgp: parseFloat(document.getElementById('otherEgp').value) || 0,
+            otherNotes: document.getElementById('otherNotes').value,
             shops: [],
             optionals: [],
             attachments: [...attachedFilesBase64],
@@ -981,6 +988,11 @@
                             <td>${(parseFloat(item.feeEgp) || 0).toFixed(2)} EGP</td>
                             <td>${item.feeNotes || '-'}</td>
                         </tr>
+                        <tr>
+                            <td>مصروفات أخرى</td>
+                            <td>${(parseFloat(item.otherEgp) || 0).toFixed(2)} EGP</td>
+                            <td>${item.otherNotes || '-'}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -1127,7 +1139,7 @@
 
         const headers = [
             "اسم المرشد", "رقم الملف", "تاريخ الحسم", "العهدة (EGP)", 
-            "أتعاب المرشد (EGP)", "مصاريف غداء", "إكراميات", "باركينج ورسوم", 
+            "أتعاب المرشد (EGP)", "مصاريف غداء", "إكراميات", "باركينج ورسوم", "مصروفات أخرى", 
             "إجمالي ما بذمته", "إجمالي المصروفات", "الصافي النهائي", "حالة الطلب"
         ];
 
@@ -1140,6 +1152,7 @@
             item.lunchEgp || 0,
             item.tipsEgp || 0,
             item.parkingEgp || 0,
+            item.otherEgp || 0,
             item.totalDue || "",
             item.totalExp || "",
             item.netAmount || "",
@@ -1196,7 +1209,6 @@
         XLSX.writeFile(workbook, `Archive_Settlements_${dateStr}.xlsx`);
     }
 
-    // --- دالة استيراد ملفات Excel مع المزامنة مع Firebase ---
     function importBackupData(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -1230,10 +1242,11 @@
                     const lunchEgp = parseFloat(row[5]) || 0;
                     const tipsEgp = parseFloat(row[6]) || 0;
                     const parkingEgp = parseFloat(row[7]) || 0;
+                    const otherEgp = parseFloat(row[8]) || 0;
                     
-                    const totalDueStr = typeof row[8] !== 'undefined' ? String(row[8]) : `${floatEgp.toFixed(2)} EGP`;
-                    const totalExpStr = typeof row[9] !== 'undefined' ? String(row[9]) : `${(lunchEgp + tipsEgp + parkingEgp + feeEgp).toFixed(2)} EGP`;
-                    const netAmountStr = typeof row[10] !== 'undefined' ? String(row[10]) : `${(floatEgp - (lunchEgp + tipsEgp + parkingEgp + feeEgp)).toFixed(2)} EGP`;
+                    const totalDueStr = typeof row[9] !== 'undefined' ? String(row[9]) : `${floatEgp.toFixed(2)} EGP`;
+                    const totalExpStr = typeof row[10] !== 'undefined' ? String(row[10]) : `${(lunchEgp + tipsEgp + parkingEgp + feeEgp + otherEgp).toFixed(2)} EGP`;
+                    const netAmountStr = typeof row[11] !== 'undefined' ? String(row[11]) : `${(floatEgp - (lunchEgp + tipsEgp + parkingEgp + feeEgp + otherEgp)).toFixed(2)} EGP`;
 
                     importedItems.push({
                         id: Date.now() + i,
@@ -1246,10 +1259,11 @@
                         lunchEgp: lunchEgp,
                         tipsEgp: tipsEgp,
                         parkingEgp: parkingEgp,
+                        otherEgp: otherEgp,
                         totalDue: totalDueStr.includes('EGP') ? totalDueStr : `${totalDueStr} EGP`,
                         totalExp: totalExpStr.includes('EGP') ? totalExpStr : `${totalExpStr} EGP`,
                         netAmount: netAmountStr.includes('EGP') ? netAmountStr : `${netAmountStr} EGP`,
-                        status: String(row[11] || 'معتمد'),
+                        status: String(row[12] || 'معتمد'),
                         shops: [],
                         optionals: [],
                         attachments: []
