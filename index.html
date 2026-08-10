@@ -331,6 +331,15 @@
                     </div>
                 </div>
 
+                <!-- قسم تذاكر المزارات (Sightseeing Tickets) -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin:0;">تذاكر المزارات (Sightseeing Tickets)</h3>
+                        <button type="button" class="btn no-print" onclick="addTicketRow()">+ إضافة مزار</button>
+                    </div>
+                    <div id="ticketsContainer"></div>
+                </div>
+
                 <!-- قسم الرحلات الاختيارية -->
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:10px;">
@@ -657,6 +666,31 @@
         renderAttachmentsPreview();
     }
 
+    let ticketCounter = 0;
+    function addTicketRow() {
+        ticketCounter++;
+        const container = document.getElementById('ticketsContainer');
+        const ticketCard = document.createElement('div');
+        ticketCard.className = 'vertical-item-card ticket-card-item';
+        ticketCard.innerHTML = `
+            <div class="vertical-card-header">
+                <span><b>تذكرة مزار #${ticketCounter}</b></span>
+                <button type="button" class="btn btn-danger no-print" onclick="this.parentElement.parentElement.remove();">حذف</button>
+            </div>
+            <div class="vertical-grid-fields">
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>اسم المزار:&rlm;</label>
+                    <input type="text" placeholder="مثال: معبد الكرنك / الأهرامات" class="ticket-name">
+                </div>
+                <div class="form-group">
+                    <label>العدد:&rlm;</label>
+                    <input type="number" value="1" min="1" class="ticket-count">
+                </div>
+            </div>
+        `;
+        container.appendChild(ticketCard);
+    }
+
     let shopCounter = 0;
     function addShopRow() {
         shopCounter++;
@@ -791,6 +825,7 @@
             feeNotes: document.getElementById('feeNotes').value,
             otherEgp: parseFloat(document.getElementById('otherEgp').value) || 0,
             otherNotes: document.getElementById('otherNotes').value,
+            tickets: [],
             shops: [],
             optionals: [],
             attachments: [...attachedFilesBase64],
@@ -798,6 +833,13 @@
             totalExp: document.getElementById('totalExpEgp').innerText,
             netAmount: document.getElementById('netEgp').innerText
         };
+
+        document.querySelectorAll('.ticket-card-item').forEach(card => {
+            formData.tickets.push({
+                name: card.querySelector('.ticket-name').value,
+                count: card.querySelector('.ticket-count').value
+            });
+        });
 
         document.querySelectorAll('.shop-card-item').forEach(card => {
             formData.shops.push({
@@ -825,6 +867,7 @@
 
         alert("✅ تم إرسال التصفية بنجاح إلى شاشة المراجعة!");
         document.getElementById('settlementForm').reset();
+        document.getElementById('ticketsContainer').innerHTML = '';
         document.getElementById('shopsContainer').innerHTML = '';
         document.getElementById('optionalContainer').innerHTML = '';
         attachedFilesBase64 = [];
@@ -997,6 +1040,34 @@
                 </table>
             </div>
         `;
+
+        if (item.tickets && item.tickets.length > 0) {
+            html += `
+                <h3 style="color: var(--primary-navy); border-bottom: 2px double var(--vintage-gold); padding-bottom: 6px; font-size:1.15em; margin-top: 25px;">
+                    تذاكر المزارات (Sightseeing Tickets)
+                </h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>اسم المزار</th>
+                                <th>العدد</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            item.tickets.forEach((t, idx) => {
+                html += `
+                    <tr>
+                        <td>${idx + 1}</td>
+                        <td><b>${t.name || '-'}</b></td>
+                        <td>${t.count || 0}</td>
+                    </tr>
+                `;
+            });
+            html += `</tbody></table></div>`;
+        }
 
         if (item.optionals && item.optionals.length > 0) {
             html += `
@@ -1264,6 +1335,7 @@
                         totalExp: totalExpStr.includes('EGP') ? totalExpStr : `${totalExpStr} EGP`,
                         netAmount: netAmountStr.includes('EGP') ? netAmountStr : `${netAmountStr} EGP`,
                         status: String(row[12] || 'معتمد'),
+                        tickets: [],
                         shops: [],
                         optionals: [],
                         attachments: []
