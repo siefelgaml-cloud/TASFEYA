@@ -132,6 +132,14 @@
             outline: none; width: 100%; box-sizing: border-box;
         }
 
+        input.field-invalid {
+            border-color: var(--red); background-color: #fbeaea;
+        }
+
+        .form-hint-error {
+            color: var(--red); font-size: 0.85em; font-weight: bold; display: none;
+        }
+
         .vertical-item-card { border: 1px solid var(--border-vintage); background-color: #fcf9f2; border-radius: 4px; padding: 18px; margin-top: 15px; }
         .vertical-card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-vintage); padding-bottom: 10px; margin-bottom: 15px; }
         .vertical-grid-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; align-items: end; }
@@ -299,7 +307,7 @@
                             <tbody>
                                 <tr>
                                     <td><b>العهدة المستلمة</b></td>
-                                    <td><input type="number" id="floatEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="number" id="floatEgp" value="0" step="any" min="0" oninput="calculateAll()"></td>
                                     <td>-</td>
                                     <td><input type="text" id="floatNotes" placeholder="مثال: نقداً من الخزينة / تحويل"></td>
                                 </tr>
@@ -311,37 +319,37 @@
                                 </tr>
                                 <tr>
                                     <td>مصاريف الغداء</td>
-                                    <td><input type="number" id="lunchEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="number" id="lunchEgp" value="0" step="any" min="0" oninput="calculateAll()"></td>
                                     <td>-</td>
                                     <td><input type="text" id="lunchNotes" placeholder="تفاصيل مطعم الغداء..."></td>
                                 </tr>
                                 <tr>
                                     <td>الإكراميات (Tips)</td>
-                                    <td><input type="number" id="tipsEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="number" id="tipsEgp" value="0" step="any" min="0" oninput="calculateAll()"></td>
                                     <td>-</td>
                                     <td><input type="text" id="tipsNotes" placeholder="إكراميات سائق / مطار / معابد..."></td>
                                 </tr>
                                 <tr>
                                     <td>الباركينج والرسوم</td>
-                                    <td><input type="number" id="parkingEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="number" id="parkingEgp" value="0" step="any" min="0" oninput="calculateAll()"></td>
                                     <td>-</td>
                                     <td><input type="text" id="parkingNotes" placeholder="رسوم انتظار / بوابات..."></td>
                                 </tr>
                                 <tr>
                                     <td>مصروفات الإقامة</td>
-                                    <td><input type="number" id="accomEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="number" id="accomEgp" value="0" step="any" min="0" oninput="calculateAll()"></td>
                                     <td>-</td>
                                     <td><input type="text" id="accomNotes" placeholder="تفاصيل الفندق / الإقامة..."></td>
                                 </tr>
                                 <tr>
                                     <td>أتعاب المرشد (اليومية)</td>
-                                    <td><input type="number" id="feeEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="number" id="feeEgp" value="0" step="any" min="0" oninput="calculateAll()"></td>
                                     <td>-</td>
                                     <td><input type="text" id="feeNotes" placeholder="عدد الأيام / تفاصيل يومية الإرشاد..."></td>
                                 </tr>
                                 <tr>
                                     <td>مصروفات أخرى</td>
-                                    <td><input type="number" id="otherEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td><input type="number" id="otherEgp" value="0" step="any" min="0" oninput="calculateAll()"></td>
                                     <td>-</td>
                                     <td><input type="text" id="otherNotes" placeholder="تفاصيل المصروفات الأخرى..."></td>
                                 </tr>
@@ -764,6 +772,16 @@
         card.querySelector('.opt-total-cost-egp').innerText = totalCostEgp.toFixed(2) + ' EGP';
     }
 
+    const MONEY_FIELDS = [
+        { id: 'floatEgp', label: 'العهدة المستلمة' },
+        { id: 'lunchEgp', label: 'مصاريف الغداء' },
+        { id: 'tipsEgp', label: 'الإكراميات' },
+        { id: 'parkingEgp', label: 'الباركينج والرسوم' },
+        { id: 'accomEgp', label: 'مصروفات الإقامة' },
+        { id: 'feeEgp', label: 'أتعاب المرشد' },
+        { id: 'otherEgp', label: 'مصروفات أخرى' }
+    ];
+
     function calculateAll() {
         const totalDue = parseFloat(document.getElementById('floatEgp').value) || 0;
 
@@ -783,6 +801,46 @@
         const netElem = document.getElementById('netEgp');
         netElem.innerText = net.toFixed(2) + ' EGP';
         netElem.className = net >= 0 ? 'positive' : 'negative';
+
+        MONEY_FIELDS.forEach(field => {
+            const el = document.getElementById(field.id);
+            const val = parseFloat(el.value);
+            el.classList.toggle('field-invalid', !isNaN(val) && val < 0);
+        });
+    }
+
+    function validateSettlementForm() {
+        for (const field of MONEY_FIELDS) {
+            const el = document.getElementById(field.id);
+            const val = parseFloat(el.value);
+            if (!isNaN(val) && val < 0) {
+                alert(`⚠️ لا يمكن إدخال قيمة سالبة في حقل "${field.label}"، يرجى تصحيح القيمة قبل الإرسال.`);
+                el.focus();
+                return false;
+            }
+        }
+
+        const ticketCountEl = document.getElementById('ticketCount');
+        const ticketCountVal = parseInt(ticketCountEl.value);
+        if (!isNaN(ticketCountVal) && ticketCountVal < 0) {
+            alert('⚠️ لا يمكن إدخال عدد سالب في حقل "عهدة التذاكر".');
+            ticketCountEl.focus();
+            return false;
+        }
+
+        const totalDue = parseFloat(document.getElementById('floatEgp').value) || 0;
+        const totalExp = parseFloat(document.getElementById('totalExpEgp').innerText) || 0;
+
+        if (totalDue === 0 && totalExp === 0) {
+            return confirm('⚠️ لم يتم إدخال أي مبالغ في العهدة أو المصروفات. هل تريد إرسال التصفية بهذا الشكل؟');
+        }
+
+        const net = totalDue - totalExp;
+        if (net < 0) {
+            return confirm(`⚠️ الصافي النهائي بالسالب (${net.toFixed(2)} EGP)، أي أن المصروفات أكبر من العهدة المستلمة. هل تريد المتابعة بالإرسال؟`);
+        }
+
+        return true;
     }
 
     async function submitSettlement() {
@@ -791,6 +849,10 @@
 
         if (!guideName || !fileNo) {
             alert("⚠️ يرجى كتابة اسم المرشد ورقم الملف قبل إرسال التصفية!");
+            return;
+        }
+
+        if (!validateSettlementForm()) {
             return;
         }
 
@@ -1169,6 +1231,26 @@
         html2pdf().set(opt).from(element).save();
     }
 
+    // تعريف موحّد لأعمدة ملف الإكسل: يُستخدم في التصدير والاستيراد معاً
+    // بحيث يعتمد الاستيراد على اسم العمود (Header) وليس على ترتيبه،
+    // فلا تتلخبط البيانات لو اتغير ترتيب الأعمدة أو اتحذف عمود من الملف.
+    const EXPORT_COLUMNS = [
+        { header: "اسم المرشد", key: "guideName", getExportValue: item => item.guideName || "" },
+        { header: "رقم الملف", key: "fileNo", getExportValue: item => item.fileNo || "" },
+        { header: "تاريخ الحسم", key: "date", getExportValue: item => item.finalDate || item.date || "" },
+        { header: "العهدة (EGP)", key: "floatEgp", getExportValue: item => item.floatEgp || 0 },
+        { header: "أتعاب المرشد (EGP)", key: "feeEgp", getExportValue: item => item.feeEgp || 0 },
+        { header: "مصاريف غداء", key: "lunchEgp", getExportValue: item => item.lunchEgp || 0 },
+        { header: "إكراميات", key: "tipsEgp", getExportValue: item => item.tipsEgp || 0 },
+        { header: "باركينج ورسوم", key: "parkingEgp", getExportValue: item => item.parkingEgp || 0 },
+        { header: "مصروفات إقامة", key: "accomEgp", getExportValue: item => item.accomEgp || 0 },
+        { header: "مصروفات أخرى", key: "otherEgp", getExportValue: item => item.otherEgp || 0 },
+        { header: "إجمالي ما بذمته", key: "totalDue", getExportValue: item => item.totalDue || "" },
+        { header: "إجمالي المصروفات", key: "totalExp", getExportValue: item => item.totalExp || "" },
+        { header: "الصافي النهائي", key: "netAmount", getExportValue: item => item.netAmount || "" },
+        { header: "حالة الطلب", key: "status", getExportValue: item => item.status || "" }
+    ];
+
     function exportBackupData() {
         if (!cloudData.archive || cloudData.archive.length === 0) {
             alert("⚠️ لا توجد بيانات أرشيف متوفرة للتصدير حالياً!");
@@ -1180,28 +1262,9 @@
             return;
         }
 
-        const headers = [
-            "اسم المرشد", "رقم الملف", "تاريخ الحسم", "العهدة (EGP)", 
-            "أتعاب المرشد (EGP)", "مصاريف غداء", "إكراميات", "باركينج ورسوم", "مصروفات إقامة", "مصروفات أخرى", 
-            "إجمالي ما بذمته", "إجمالي المصروفات", "الصافي النهائي", "حالة الطلب"
-        ];
+        const headers = EXPORT_COLUMNS.map(col => col.header);
 
-        const rows = cloudData.archive.map(item => [
-            item.guideName || "",
-            item.fileNo || "",
-            item.finalDate || item.date || "",
-            item.floatEgp || 0,
-            item.feeEgp || 0,
-            item.lunchEgp || 0,
-            item.tipsEgp || 0,
-            item.parkingEgp || 0,
-            item.accomEgp || 0,
-            item.otherEgp || 0,
-            item.totalDue || "",
-            item.totalExp || "",
-            item.netAmount || "",
-            item.status || ""
-        ]);
+        const rows = cloudData.archive.map(item => EXPORT_COLUMNS.map(col => col.getExportValue(item)));
 
         const data = [headers, ...rows];
         const worksheet = XLSX.utils.aoa_to_sheet(data);
@@ -1276,29 +1339,53 @@
                     return;
                 }
 
+                // مطابقة أعمدة الملف بأسماء العناوين بدل ترتيبها،
+                // عشان لو حد رتب الأعمدة بشكل مختلف أو حذف عمود، الاستيراد يفضل صحيح
+                const headerRow = jsonData[0] || [];
+                const colIndex = {};
+                EXPORT_COLUMNS.forEach(col => {
+                    colIndex[col.key] = headerRow.findIndex(h => String(h || '').trim() === col.header);
+                });
+
+                if (colIndex.guideName === -1 || colIndex.fileNo === -1) {
+                    alert('⚠️ ملف الإكسل لا يحتوي على أعمدة أساسية متوقعة ("اسم المرشد" و"رقم الملف"). يرجى التأكد أن الصف الأول يحتوي على عناوين الأعمدة الصحيحة.');
+                    return;
+                }
+
+                function cell(row, key) {
+                    const idx = colIndex[key];
+                    if (idx === undefined || idx === -1) return undefined;
+                    return row[idx];
+                }
+
                 const importedItems = [];
                 for (let i = 1; i < jsonData.length; i++) {
                     const row = jsonData[i];
-                    if (!row || row.length === 0 || !row[0]) continue;
+                    if (!row || row.length === 0 || !cell(row, 'guideName')) continue;
 
-                    const floatEgp = parseFloat(row[3]) || 0;
-                    const feeEgp = parseFloat(row[4]) || 0;
-                    const lunchEgp = parseFloat(row[5]) || 0;
-                    const tipsEgp = parseFloat(row[6]) || 0;
-                    const parkingEgp = parseFloat(row[7]) || 0;
-                    const accomEgp = parseFloat(row[8]) || 0;
-                    const otherEgp = parseFloat(row[9]) || 0;
-                    
-                    const totalDueStr = typeof row[10] !== 'undefined' ? String(row[10]) : `${floatEgp.toFixed(2)} EGP`;
-                    const totalExpStr = typeof row[11] !== 'undefined' ? String(row[11]) : `${(lunchEgp + tipsEgp + parkingEgp + accomEgp + feeEgp + otherEgp).toFixed(2)} EGP`;
-                    const netAmountStr = typeof row[12] !== 'undefined' ? String(row[12]) : `${(floatEgp - (lunchEgp + tipsEgp + parkingEgp + accomEgp + feeEgp + otherEgp)).toFixed(2)} EGP`;
+                    const floatEgp = parseFloat(cell(row, 'floatEgp')) || 0;
+                    const feeEgp = parseFloat(cell(row, 'feeEgp')) || 0;
+                    const lunchEgp = parseFloat(cell(row, 'lunchEgp')) || 0;
+                    const tipsEgp = parseFloat(cell(row, 'tipsEgp')) || 0;
+                    const parkingEgp = parseFloat(cell(row, 'parkingEgp')) || 0;
+                    const accomEgp = parseFloat(cell(row, 'accomEgp')) || 0;
+                    const otherEgp = parseFloat(cell(row, 'otherEgp')) || 0;
+
+                    const rawTotalDue = cell(row, 'totalDue');
+                    const rawTotalExp = cell(row, 'totalExp');
+                    const rawNetAmount = cell(row, 'netAmount');
+                    const rawDate = cell(row, 'date');
+
+                    const totalDueStr = typeof rawTotalDue !== 'undefined' ? String(rawTotalDue) : `${floatEgp.toFixed(2)} EGP`;
+                    const totalExpStr = typeof rawTotalExp !== 'undefined' ? String(rawTotalExp) : `${(lunchEgp + tipsEgp + parkingEgp + accomEgp + feeEgp + otherEgp).toFixed(2)} EGP`;
+                    const netAmountStr = typeof rawNetAmount !== 'undefined' ? String(rawNetAmount) : `${(floatEgp - (lunchEgp + tipsEgp + parkingEgp + accomEgp + feeEgp + otherEgp)).toFixed(2)} EGP`;
 
                     importedItems.push({
                         id: Date.now() + i,
-                        guideName: String(row[0] || ''),
-                        fileNo: String(row[1] || ''),
-                        date: String(row[2] || new Date().toLocaleDateString('ar-EG')),
-                        finalDate: String(row[2] || new Date().toLocaleDateString('ar-EG')),
+                        guideName: String(cell(row, 'guideName') || ''),
+                        fileNo: String(cell(row, 'fileNo') || ''),
+                        date: String(rawDate || new Date().toLocaleDateString('ar-EG')),
+                        finalDate: String(rawDate || new Date().toLocaleDateString('ar-EG')),
                         floatEgp: floatEgp,
                         feeEgp: feeEgp,
                         lunchEgp: lunchEgp,
@@ -1309,7 +1396,7 @@
                         totalDue: totalDueStr.includes('EGP') ? totalDueStr : `${totalDueStr} EGP`,
                         totalExp: totalExpStr.includes('EGP') ? totalExpStr : `${totalExpStr} EGP`,
                         netAmount: netAmountStr.includes('EGP') ? netAmountStr : `${netAmountStr} EGP`,
-                        status: String(row[13] || 'معتمد'),
+                        status: String(cell(row, 'status') || 'معتمد'),
                         shops: [],
                         optionals: [],
                         attachments: []
