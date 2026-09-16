@@ -12,6 +12,7 @@
     <!-- مكتبات Firebase للمزامنة اللحظية بين الهاتف والكمبيوتر -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Cinzel:wght@600;700;800;900&family=Montserrat:wght@400;600;700&display=swap');
@@ -517,7 +518,13 @@
     const STORAGE_KEY = "tafseya_app_permanent_db";
 
     const firebaseConfig = {
-        databaseURL: "https://tasfeya-40a8b-default-rtdb.europe-west1.firebasedatabase.app/"
+        apiKey: "AIzaSyDtUUBt8j98fN1ha3Cew8jLSRVSZb9J1d8",
+        authDomain: "tasfeya-40a8b.firebaseapp.com",
+        databaseURL: "https://tasfeya-40a8b-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "tasfeya-40a8b",
+        storageBucket: "tasfeya-40a8b.firebasestorage.app",
+        messagingSenderId: "536443507812",
+        appId: "1:536443507812:web:1ccc4640fcec69114b7b71"
     };
     
     let db = null;
@@ -526,6 +533,25 @@
             firebase.initializeApp(firebaseConfig);
         }
         db = firebase.database();
+    }
+
+    // تسجيل دخول "مجهول" (Anonymous Auth) قبل أي قراءة/كتابة على قاعدة البيانات.
+    // ده مش بديل عن PIN الدخول للتابات، لكنه بيمنع أي حد يعرف رابط قاعدة البيانات
+    // من قراءة أو تعديل البيانات مباشرة من برا التطبيق - بشرط تفعيل خاصية
+    // "Anonymous" من Firebase Console > Authentication > Sign-in method،
+    // وتحديث Security Rules في Realtime Database بحيث تشترط auth != null
+    // (راجع التعليمات المرفقة في التعليق أسفل الكود).
+    async function ensureFirebaseAuth() {
+        if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') return false;
+        try {
+            if (!firebase.auth().currentUser) {
+                await firebase.auth().signInAnonymously();
+            }
+            return true;
+        } catch (e) {
+            console.warn("⚠️ تعذر تسجيل الدخول التلقائي لفايربيز (فعّل Anonymous Auth من الـ Console). سيتم العمل بالتخزين المحلي فقط حتى يتم التفعيل:", e);
+            return false;
+        }
     }
 
     let localBackup = { pending: [], archive: [] };
@@ -595,6 +621,7 @@
                 await db.ref('tafseya_data').set(cloudData);
             } catch (e) {
                 console.error("خطأ التحديث اللحظي:", e);
+                alert("⚠️ تم حفظ البيانات محلياً على هذا الجهاز فقط، لكن تعذرت مزامنتها مع السحابة (تحقق من الاتصال أو إعدادات الصلاحيات في Firebase).");
             }
         }
     }
@@ -1423,7 +1450,10 @@
         reader.readAsArrayBuffer(file);
     }
 
-    window.onload = function() {
+    window.onload = async function() {
+        if (db) {
+            await ensureFirebaseAuth();
+        }
         initRealtimeSync();
     };
 </script>
