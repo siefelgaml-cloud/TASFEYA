@@ -328,6 +328,12 @@
                                     <td><input type="text" id="parkingNotes" placeholder="رسوم انتظار / بوابات..."></td>
                                 </tr>
                                 <tr>
+                                    <td>مصروفات الإقامة</td>
+                                    <td><input type="number" id="accomEgp" value="0" step="any" oninput="calculateAll()"></td>
+                                    <td>-</td>
+                                    <td><input type="text" id="accomNotes" placeholder="تفاصيل الفندق / الإقامة..."></td>
+                                </tr>
+                                <tr>
                                     <td>أتعاب المرشد (اليومية)</td>
                                     <td><input type="number" id="feeEgp" value="0" step="any" oninput="calculateAll()"></td>
                                     <td>-</td>
@@ -764,10 +770,11 @@
         const lunch = parseFloat(document.getElementById('lunchEgp').value) || 0;
         const tips = parseFloat(document.getElementById('tipsEgp').value) || 0;
         const parking = parseFloat(document.getElementById('parkingEgp').value) || 0;
+        const accom = parseFloat(document.getElementById('accomEgp').value) || 0;
         const fee = parseFloat(document.getElementById('feeEgp').value) || 0;
         const other = parseFloat(document.getElementById('otherEgp').value) || 0;
 
-        const totalExp = lunch + tips + parking + fee + other;
+        const totalExp = lunch + tips + parking + accom + fee + other;
         const net = totalDue - totalExp;
 
         document.getElementById('totalDueEgp').innerText = totalDue.toFixed(2) + ' EGP';
@@ -802,6 +809,8 @@
             tipsNotes: document.getElementById('tipsNotes').value,
             parkingEgp: parseFloat(document.getElementById('parkingEgp').value) || 0,
             parkingNotes: document.getElementById('parkingNotes').value,
+            accomEgp: parseFloat(document.getElementById('accomEgp').value) || 0,
+            accomNotes: document.getElementById('accomNotes').value,
             feeEgp: parseFloat(document.getElementById('feeEgp').value) || 0,
             feeNotes: document.getElementById('feeNotes').value,
             otherEgp: parseFloat(document.getElementById('otherEgp').value) || 0,
@@ -1010,6 +1019,12 @@
                             <td>${item.parkingNotes || '-'}</td>
                         </tr>
                         <tr>
+                            <td>مصروفات الإقامة</td>
+                            <td>${(parseFloat(item.accomEgp) || 0).toFixed(2)} EGP</td>
+                            <td>-</td>
+                            <td>${item.accomNotes || '-'}</td>
+                        </tr>
+                        <tr>
                             <td>أتعاب المرشد (اليومية)</td>
                             <td>${(parseFloat(item.feeEgp) || 0).toFixed(2)} EGP</td>
                             <td>-</td>
@@ -1167,7 +1182,7 @@
 
         const headers = [
             "اسم المرشد", "رقم الملف", "تاريخ الحسم", "العهدة (EGP)", 
-            "أتعاب المرشد (EGP)", "مصاريف غداء", "إكراميات", "باركينج ورسوم", "مصروفات أخرى", 
+            "أتعاب المرشد (EGP)", "مصاريف غداء", "إكراميات", "باركينج ورسوم", "مصروفات إقامة", "مصروفات أخرى", 
             "إجمالي ما بذمته", "إجمالي المصروفات", "الصافي النهائي", "حالة الطلب"
         ];
 
@@ -1180,6 +1195,7 @@
             item.lunchEgp || 0,
             item.tipsEgp || 0,
             item.parkingEgp || 0,
+            item.accomEgp || 0,
             item.otherEgp || 0,
             item.totalDue || "",
             item.totalExp || "",
@@ -1270,11 +1286,12 @@
                     const lunchEgp = parseFloat(row[5]) || 0;
                     const tipsEgp = parseFloat(row[6]) || 0;
                     const parkingEgp = parseFloat(row[7]) || 0;
-                    const otherEgp = parseFloat(row[8]) || 0;
+                    const accomEgp = parseFloat(row[8]) || 0;
+                    const otherEgp = parseFloat(row[9]) || 0;
                     
-                    const totalDueStr = typeof row[9] !== 'undefined' ? String(row[9]) : `${floatEgp.toFixed(2)} EGP`;
-                    const totalExpStr = typeof row[10] !== 'undefined' ? String(row[10]) : `${(lunchEgp + tipsEgp + parkingEgp + feeEgp + otherEgp).toFixed(2)} EGP`;
-                    const netAmountStr = typeof row[11] !== 'undefined' ? String(row[11]) : `${(floatEgp - (lunchEgp + tipsEgp + parkingEgp + feeEgp + otherEgp)).toFixed(2)} EGP`;
+                    const totalDueStr = typeof row[10] !== 'undefined' ? String(row[10]) : `${floatEgp.toFixed(2)} EGP`;
+                    const totalExpStr = typeof row[11] !== 'undefined' ? String(row[11]) : `${(lunchEgp + tipsEgp + parkingEgp + accomEgp + feeEgp + otherEgp).toFixed(2)} EGP`;
+                    const netAmountStr = typeof row[12] !== 'undefined' ? String(row[12]) : `${(floatEgp - (lunchEgp + tipsEgp + parkingEgp + accomEgp + feeEgp + otherEgp)).toFixed(2)} EGP`;
 
                     importedItems.push({
                         id: Date.now() + i,
@@ -1287,11 +1304,12 @@
                         lunchEgp: lunchEgp,
                         tipsEgp: tipsEgp,
                         parkingEgp: parkingEgp,
+                        accomEgp: accomEgp,
                         otherEgp: otherEgp,
                         totalDue: totalDueStr.includes('EGP') ? totalDueStr : `${totalDueStr} EGP`,
                         totalExp: totalExpStr.includes('EGP') ? totalExpStr : `${totalExpStr} EGP`,
                         netAmount: netAmountStr.includes('EGP') ? netAmountStr : `${netAmountStr} EGP`,
-                        status: String(row[12] || 'معتمد'),
+                        status: String(row[13] || 'معتمد'),
                         shops: [],
                         optionals: [],
                         attachments: []
