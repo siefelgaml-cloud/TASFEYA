@@ -541,7 +541,9 @@
 
 <script>
     const SECRET_PIN = "991997";
-    const STORAGE_KEY = "tafseya_app_permanent_db";
+    const STORAGE_KEY = "tafseya_v2_cache";             // نسخة محلية خفيفة (من غير صور)
+    const OLD_STORAGE_KEY = "tafseya_app_permanent_db"; // النسخة المحلية القديمة (كانت بتملأ التخزين)
+    const V2 = "tafseya_v2";                            // مكان البيانات الجديد في Firebase
 
     const firebaseConfig = {
         apiKey: "AIzaSyDtUUBt8j98fN1ha3Cew8jLSRVSZb9J1d8",
@@ -623,47 +625,176 @@
         }
     }
 
+    // ================= نظام الحفظ الجديد (V2): كل تصفية في مكان مستقل =================
+    // tafseya_v2/pending/{id}   -> الطلبات قيد المراجعة (بدون صور)
+    // tafseya_v2/archive/{id}   -> الأرشيف (بدون صور)
+    // tafseya_v2/files/{id}     -> صور المرفقات (بتتحمل عند فتح التفاصيل بس)
+    // tafseya_v2/meta/migrated  -> علامة إن البيانات القديمة اتنقلت
+    // النود القديمة tafseya_data بتفضل زي ما هي كنسخة احتياطية ومبتتكتبش تاني.
+
+    let pendingLoaded = false, archiveLoaded = false, metaLoaded = false, migratedFlag = false;
+
+    function toList(v) {
+        if (!v) return [];
+        const arr = Array.isArray(v) ? v : Object.values(v);
+        return arr.filter(Boolean).sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+    }
+
+    function refreshAfterSync() {
+        cloudReady = pendingLoaded && archiveLoaded && metaLoaded && migratedFlag;
+        if (pendingLoaded && archiveLoaded) {
+            safeLocalSave();
+            if (migratedFlag) { try { localStorage.removeItem(OLD_STORAGE_KEY); } catch (e) {} }
+        }
+        showMigrationBanner(metaLoaded && !migratedFlag);
+        renderReviewTable();
+        renderArchiveTable();
+        updateBadge();
+    }
+
     function initRealtimeSync() {
-        if (db) {
-            db.ref('tafseya_data').on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    cloudData.pending = data.pending || [];
-                    cloudData.archive = data.archive || [];
-                } else {
-                    cloudData = { pending: [], archive: [] };
-                }
-                cloudReady = true;
-                safeLocalSave();
-                renderReviewTable();
-                renderArchiveTable();
-                updateBadge();
-            }, (error) => {
-                console.warn("تعذر الاتصال بـ Firebase، التبديل للتخزين المحلي:", error);
-                renderReviewTable();
-                renderArchiveTable();
-                updateBadge();
-            });
-        } else {
+        if (!db) {
             renderReviewTable();
             renderArchiveTable();
             updateBadge();
+            return;
+        }
+        const onErr = (error) => {
+            console.warn("تعذر الاتصال بـ Firebase:", error);
+            renderReviewTable();
+            renderArchiveTable();
+            updateBadge();
+        };
+        db.ref(V2 + '/pending').on('value', (snap) => { cloudData.pending = toList(snap.val()); pendingLoaded = true; refreshAfterSync(); }, onErr);
+        db.ref(V2 + '/archive').on('value', (snap) => { cloudData.archive = toList(snap.val()); archiveLoaded = true; refreshAfterSync(); }, onErr);
+        db.ref(V2 + '/meta/migrated').on('value', (snap) => { migratedFlag = !!snap.val(); metaLoaded = true; refreshAfterSync(); }, onErr);
+    }
+
+    // كتابة أكتر من مكان مرة واحدة (بشكل متزامن): بتتحفظ كلها أو مفيش ولا حاجة
+    async function cloudWrite(updates) {
+        if (!db) return true; // وضع محلي فقط (لو مكتبة Firebase ما اتحملتش)
+        try {
+            await db.ref().update(updates);
+            return true;
+        } catch (e) {
+            console.error("خطأ الحفظ على السحابة:", e);
+            alert("⚠️ تعذر حفظ البيانات على السحابة (تحقق من الاتصال أو إعدادات الصلاحيات في Firebase). لم يتم الحفظ.");
+            return false;
         }
     }
 
-    async function saveCloudData() {
-        safeLocalSave();
-        if (db) {
-            try {
-                await db.ref('tafseya_data').set(cloudData);
-                return true;
-            } catch (e) {
-                console.error("خطأ التحديث اللحظي:", e);
-                alert("⚠️ تعذر حفظ البيانات على السحابة (تحقق من الاتصال أو إعدادات الصلاحيات في Firebase). لم يتم إرسال التصفية.");
-                return false;
-            }
+    function syncNotReadyMessage() {
+        if (metaLoaded && !migratedFlag) {
+            alert("⚙️ النظام قيد الترقية، لازم المسؤول يبدأ ترحيل البيانات الأول (الشريط الأصفر أعلى الصفحة).");
+        } else {
+            alert("⏳ جاري مزامنة البيانات مع السحابة، انتظر ثواني وحاول مرة تانية (وتأكد من الإنترنت).");
         }
-        return true;
+    }
+
+    // ---------- ترحيل البيانات القديمة (مرة واحدة، بيعملها المسؤول) ----------
+    function showMigrationBanner(show) {
+        let b = document.getElementById('migrationBanner');
+        if (!show) { if (b) b.remove(); return; }
+        if (b) return;
+        b = document.createElement('div');
+        b.id = 'migrationBanner';
+        b.style.cssText = 'position:sticky;top:0;z-index:9999;background:#fff3cd;border-bottom:3px solid #b8860b;color:#5c4400;padding:12px 16px;text-align:center;font-weight:bold;direction:rtl;';
+        b.innerHTML = '⚠️ تم تحديث نظام الحفظ ويحتاج ترحيل البيانات القديمة مرة واحدة. لحد ما يخلص الترحيل مش هيتقبل إرسال تصفيات جديدة.<br>' +
+            '<button id="migrateBtn" class="btn btn-info" style="margin-top:8px;">بدء الترحيل (للمسؤول)</button>' +
+            '<div id="migrateStatus" style="margin-top:6px;font-weight:normal;"></div>';
+        document.body.prepend(b);
+        document.getElementById('migrateBtn').onclick = runMigrationWithPin;
+    }
+
+    let migrating = false;
+    async function runMigrationWithPin() {
+        if (migrating) return;
+        const pin = prompt("🔒 ترحيل البيانات للنظام الجديد - أدخل الرقم السري:");
+        if (pin !== SECRET_PIN) {
+            if (pin !== null) alert("❌ الرقم السري غير صحيح!");
+            return;
+        }
+        migrating = true;
+        const btn = document.getElementById('migrateBtn');
+        const status = document.getElementById('migrateStatus');
+        if (btn) btn.disabled = true;
+        const say = (t) => { if (status) status.innerText = t; };
+        try {
+            await migrateToV2(say);
+        } catch (e) {
+            console.error("فشل الترحيل:", e);
+            say("❌ فشل الترحيل: " + (e && e.message ? e.message : e));
+            alert("❌ فشل الترحيل. البيانات القديمة سليمة ولم تتأثر. افتح Console (F12) وابعت الخطأ اللي ظهر.");
+        } finally {
+            migrating = false;
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function migrateToV2(say) {
+        say("⏳ جاري قراءة البيانات القديمة...");
+        const oldSnap = await db.ref('tafseya_data').once('value');
+        const old = oldSnap.val() || {};
+        const oldPending = toList(old.pending);
+        const oldArchive = toList(old.archive);
+
+        // كل سجل لازم ياخد id رقمي فريد
+        const used = new Set();
+        let maxId = 0;
+        [...oldPending, ...oldArchive].forEach(it => {
+            const n = Number(it.id);
+            if (Number.isFinite(n) && n > maxId) maxId = n;
+        });
+        const items = [];
+        const place = (list, bucket) => list.forEach(it => {
+            let id = Number(it.id);
+            if (!Number.isFinite(id) || used.has(id)) id = ++maxId;
+            used.add(id);
+            const { attachments, ...light } = it;
+            const files = Array.isArray(attachments) ? attachments : (attachments ? Object.values(attachments) : []);
+            items.push({ bucket: bucket, id: id, light: { ...light, id: id }, files: files.filter(Boolean) });
+        });
+        place(oldPending, 'pending');
+        place(oldArchive, 'archive');
+
+        // نكتب على دفعات (حوالي 4MB للدفعة) عشان نفضل بعيد عن حد الـ 16MB
+        const LIMIT = 4 * 1024 * 1024;
+        let batch = {}, batchBytes = 0, done = 0;
+        const flush = async () => {
+            if (batchBytes === 0) return;
+            await db.ref().update(batch);
+            batch = {};
+            batchBytes = 0;
+        };
+        for (const it of items) {
+            const size = JSON.stringify(it.light).length + (it.files.length ? JSON.stringify(it.files).length : 0);
+            if (batchBytes > 0 && batchBytes + size > LIMIT) await flush();
+            batch[V2 + '/' + it.bucket + '/' + it.id] = it.light;
+            if (it.files.length) batch[V2 + '/files/' + it.id] = it.files;
+            batchBytes += size;
+            done++;
+            say('⏳ جاري النقل... ' + done + ' / ' + items.length);
+        }
+        await flush();
+
+        say("⏳ جاري التحقق من النقل...");
+        const expP = items.filter(i => i.bucket === 'pending').length;
+        const expA = items.filter(i => i.bucket === 'archive').length;
+        const [pSnap, aSnap] = await Promise.all([
+            db.ref(V2 + '/pending').once('value'),
+            db.ref(V2 + '/archive').once('value')
+        ]);
+        if (pSnap.numChildren() < expP || aSnap.numChildren() < expA) {
+            throw new Error('عدد السجلات بعد النقل أقل من المتوقع (مراجعة ' + pSnap.numChildren() + '/' + expP + ' - أرشيف ' + aSnap.numChildren() + '/' + expA + ')');
+        }
+
+        await db.ref(V2 + '/meta/migrated').set({
+            at: firebase.database.ServerValue.TIMESTAMP,
+            pending: expP,
+            archive: expA
+        });
+        say('✅ تم نقل ' + expP + ' قيد المراجعة و ' + expA + ' أرشيف.');
+        alert('✅ تم الترحيل بنجاح: ' + expP + ' قيد المراجعة + ' + expA + ' في الأرشيف.');
     }
 
     function updateBadge() {
@@ -912,7 +1043,7 @@
 
     async function submitSettlement() {
         if (db && !cloudReady) {
-            alert("⏳ جاري مزامنة البيانات مع السحابة، انتظر ثواني وحاول مرة تانية (وتأكد من الإنترنت).");
+            syncNotReadyMessage();
             return;
         }
         const guideName = document.getElementById('guideInput').value.trim();
@@ -976,14 +1107,18 @@
             });
         });
 
-        if (!cloudData.pending) cloudData.pending = [];
-        cloudData.pending.push(formData);
-        const savedOk = await saveCloudData();
+        // التصفية بتتحفظ في مكانها الخاص، والصور في مكان منفصل
+        const { attachments: formFiles, ...lightRecord } = formData;
+        const updates = {};
+        updates[V2 + '/pending/' + formData.id] = lightRecord;
+        if (formFiles && formFiles.length) updates[V2 + '/files/' + formData.id] = formFiles;
+        const savedOk = await cloudWrite(updates);
         if (!savedOk) {
-            cloudData.pending = (cloudData.pending || []).filter(p => p.id !== formData.id);
-            updateBadge();
             return; // الفورم بيفضل زي ما هو عشان المرشد ما يكتبش من الأول
         }
+        if (!cloudData.pending) cloudData.pending = [];
+        if (!cloudData.pending.some(p => p.id === formData.id)) cloudData.pending.push(lightRecord);
+        safeLocalSave();
 
         alert("✅ تم إرسال التصفية بنجاح إلى شاشة المراجعة!");
         document.getElementById('settlementForm').reset();
@@ -1016,36 +1151,41 @@
                 <td><b>${item.netAmount}</b></td>
                 <td><button class="btn btn-info" onclick="openDetailsModal(${item.id}, 'pending')">👁️ عرض</button></td>
                 <td>
-                    <button class="btn btn-submit" style="padding:4px 8px; font-size:0.85em;" onclick="approveItem(${index})">اعتماد ✅</button>
-                    <button class="btn btn-danger" style="padding:4px 8px; font-size:0.85em;" onclick="rejectItem(${index})">رفض ❌</button>
+                    <button class="btn btn-submit" style="padding:4px 8px; font-size:0.85em;" onclick="approveItem(${item.id})">اعتماد ✅</button>
+                    <button class="btn btn-danger" style="padding:4px 8px; font-size:0.85em;" onclick="rejectItem(${item.id})">رفض ❌</button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     }
 
-    async function approveItem(index) {
-        if (!confirm("هل أنت تأكد من اعتماد هذه التصفية وتحويلها للأرشيف؟")) return;
-        let item = cloudData.pending.splice(index, 1)[0];
-        item.status = "معتمد";
-        item.finalDate = new Date().toLocaleDateString('ar-EG');
-        if (!cloudData.archive) cloudData.archive = [];
-        cloudData.archive.push(item);
-        await saveCloudData();
+    async function moveFromPending(id, status, confirmText) {
+        if (db && !cloudReady) { syncNotReadyMessage(); return; }
+        const item = (cloudData.pending || []).find(p => p.id === id);
+        if (!item) return;
+        if (!confirm(confirmText)) return;
+        const moved = { ...item, status: status, finalDate: new Date().toLocaleDateString('ar-EG') };
+        const updates = {};
+        updates[V2 + '/pending/' + item.id] = null;   // يتشال من المراجعة
+        updates[V2 + '/archive/' + item.id] = moved;  // ويتضاف للأرشيف (الصور بتفضل في files/{id})
+        const ok = await cloudWrite(updates);
+        if (!ok) return;
+        if (!db) { // وضع محلي فقط
+            cloudData.pending = cloudData.pending.filter(p => p.id !== item.id);
+            if (!cloudData.archive) cloudData.archive = [];
+            cloudData.archive.push(moved);
+            safeLocalSave();
+        }
         renderReviewTable();
         updateBadge();
     }
 
-    async function rejectItem(index) {
-        if (!confirm("هل أنت تأكد من رفض هذه التصفية؟")) return;
-        let item = cloudData.pending.splice(index, 1)[0];
-        item.status = "مرفوض";
-        item.finalDate = new Date().toLocaleDateString('ar-EG');
-        if (!cloudData.archive) cloudData.archive = [];
-        cloudData.archive.push(item);
-        await saveCloudData();
-        renderReviewTable();
-        updateBadge();
+    function approveItem(id) {
+        return moveFromPending(id, "معتمد", "هل أنت تأكد من اعتماد هذه التصفية وتحويلها للأرشيف؟");
+    }
+
+    function rejectItem(id) {
+        return moveFromPending(id, "مرفوض", "هل أنت تأكد من رفض هذه التصفية؟");
     }
 
     function renderArchiveTable() {
@@ -1269,21 +1409,43 @@
             </div>
         `;
 
-        if (item.attachments && item.attachments.length > 0) {
-            html += `
+        html += `<div id="modalAttachments"></div>`;
+
+        document.getElementById('modalContent').innerHTML = html;
+        document.getElementById('detailsModal').classList.add('active');
+        loadModalAttachments(item);
+    }
+
+    // الصور مش محمّلة مع القوائم، بتتجاب من السحابة لما تفتح تفاصيل التصفية بس
+    async function loadModalAttachments(item) {
+        const box = document.getElementById('modalAttachments');
+        if (!box) return;
+        let files = Array.isArray(item.attachments) ? item.attachments : [];
+        if (files.length === 0 && db) {
+            box.innerHTML = '<div style="margin-top:15px; color:#777;">⏳ جاري تحميل المرفقات...</div>';
+            try {
+                const snap = await db.ref(V2 + '/files/' + item.id).once('value');
+                const v = snap.val();
+                files = Array.isArray(v) ? v : (v ? Object.values(v) : []);
+            } catch (e) {
+                console.error("تعذر تحميل المرفقات:", e);
+                if (document.body.contains(box)) box.innerHTML = '<div style="margin-top:15px; color:#a00;">⚠️ تعذر تحميل المرفقات</div>';
+                return;
+            }
+        }
+        if (!document.body.contains(box)) return; // اتفتحت تصفية تانية في الوقت ده
+        if (files.length === 0) { box.innerHTML = ''; return; }
+        let h = `
                 <h3 style="color: var(--primary-navy); border-bottom: 2px double var(--vintage-gold); padding-bottom: 6px; font-size:1.15em; margin-top: 25px;">
                     🖼️ المرفقات والفواتير المصورة
                 </h3>
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
             `;
-            item.attachments.forEach((imgBase64, idx) => {
-                html += `<div style="width:100px; height:100px; border:1px solid var(--border-vintage); border-radius:4px; overflow:hidden;"><img src="${imgBase64}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="openBase64Image('${imgBase64}')"></div>`;
-            });
-            html += `</div>`;
-        }
-
-        document.getElementById('modalContent').innerHTML = html;
-        document.getElementById('detailsModal').classList.add('active');
+        files.forEach((imgBase64) => {
+            h += `<div style="width:100px; height:100px; border:1px solid var(--border-vintage); border-radius:4px; overflow:hidden;"><img src="${imgBase64}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="openBase64Image('${imgBase64}')"></div>`;
+        });
+        h += `</div>`;
+        box.innerHTML = h;
     }
 
     function closeModal() {
@@ -1484,9 +1646,16 @@
                     return;
                 }
 
-                if (!cloudData.archive) cloudData.archive = [];
-                cloudData.archive.push(...importedItems);
-                await saveCloudData();
+                if (db && !cloudReady) { syncNotReadyMessage(); return; }
+                const importUpdates = {};
+                importedItems.forEach(it => { importUpdates[V2 + '/archive/' + it.id] = it; });
+                const importOk = await cloudWrite(importUpdates);
+                if (!importOk) return;
+                if (!db) { // وضع محلي فقط
+                    if (!cloudData.archive) cloudData.archive = [];
+                    cloudData.archive.push(...importedItems);
+                    safeLocalSave();
+                }
 
                 alert(`✅ تم استيراد ${importedItems.length} سجل بنجاح وحفظهم بالأرشيف والمزامنة!`);
                 renderArchiveTable();
