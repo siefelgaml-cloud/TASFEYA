@@ -613,6 +613,16 @@
         }
     }
 
+    // ملحوظة: النسخة المحلية مجرد احتياطي. لو التخزين المحلي امتلأ (حوالي 5MB) لازم ما يوقفش الإرسال لفايربيز.
+    let cloudReady = false; // بتبقى true بعد أول تحميل ناجح للبيانات من السحابة
+    function safeLocalSave() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
+        } catch (e) {
+            console.warn("التخزين المحلي ممتلئ - تم تخطي النسخة المحلية، والبيانات الأساسية على فايربيز:", e);
+        }
+    }
+
     function initRealtimeSync() {
         if (db) {
             db.ref('tafseya_data').on('value', (snapshot) => {
@@ -623,7 +633,8 @@
                 } else {
                     cloudData = { pending: [], archive: [] };
                 }
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
+                cloudReady = true;
+                safeLocalSave();
                 renderReviewTable();
                 renderArchiveTable();
                 updateBadge();
@@ -641,15 +652,18 @@
     }
 
     async function saveCloudData() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
+        safeLocalSave();
         if (db) {
             try {
                 await db.ref('tafseya_data').set(cloudData);
+                return true;
             } catch (e) {
                 console.error("خطأ التحديث اللحظي:", e);
-                alert("⚠️ تم حفظ البيانات محلياً على هذا الجهاز فقط، لكن تعذرت مزامنتها مع السحابة (تحقق من الاتصال أو إعدادات الصلاحيات في Firebase).");
+                alert("⚠️ تعذر حفظ البيانات على السحابة (تحقق من الاتصال أو إعدادات الصلاحيات في Firebase). لم يتم إرسال التصفية.");
+                return false;
             }
         }
+        return true;
     }
 
     function updateBadge() {
@@ -897,6 +911,10 @@
     }
 
     async function submitSettlement() {
+        if (db && !cloudReady) {
+            alert("⏳ جاري مزامنة البيانات مع السحابة، انتظر ثواني وحاول مرة تانية (وتأكد من الإنترنت).");
+            return;
+        }
         const guideName = document.getElementById('guideInput').value.trim();
         const fileNo = document.getElementById('fileNo').value.trim();
 
@@ -960,7 +978,12 @@
 
         if (!cloudData.pending) cloudData.pending = [];
         cloudData.pending.push(formData);
-        await saveCloudData();
+        const savedOk = await saveCloudData();
+        if (!savedOk) {
+            cloudData.pending = (cloudData.pending || []).filter(p => p.id !== formData.id);
+            updateBadge();
+            return; // الفورم بيفضل زي ما هو عشان المرشد ما يكتبش من الأول
+        }
 
         alert("✅ تم إرسال التصفية بنجاح إلى شاشة المراجعة!");
         document.getElementById('settlementForm').reset();
