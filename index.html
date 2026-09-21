@@ -246,9 +246,10 @@
 
             /* عند طباعة نافذة التقرير المنبثقة (المودال)، نطبع محتواها فقط
                ونشيل قيود الارتفاع والسكرول اللي بتقطع باقي التقرير */
-            body:has(#detailsModal.active) * { visibility: hidden; }
-            body:has(#detailsModal.active) #detailsModal,
-            body:has(#detailsModal.active) #detailsModal * { visibility: visible; }
+            body:has(#detailsModal.active) .sidebar,
+            body:has(#detailsModal.active) .main-wrapper {
+                display: none !important;
+            }
             #detailsModal.active {
                 position: static !important;
                 display: block !important;
@@ -344,7 +345,7 @@
                                     <td><input type="text" id="ticketsNotes" placeholder="ملاحظات تذاكر العهدة..."></td>
                                 </tr>
                                 <tr>
-                                    <td>مصاريف الغداء</td>
+                                    <td>مصاريف المطاعم</td>
                                     <td><input type="number" id="lunchEgp" value="0" step="any" min="0" oninput="calculateAll()"></td>
                                     <td>-</td>
                                     <td><input type="text" id="lunchNotes" placeholder="تفاصيل مطعم الغداء..."></td>
@@ -826,7 +827,7 @@
 
     const MONEY_FIELDS = [
         { id: 'floatEgp', label: 'العهدة المستلمة' },
-        { id: 'lunchEgp', label: 'مصاريف الغداء' },
+        { id: 'lunchEgp', label: 'مصاريف المطاعم' },
         { id: 'tipsEgp', label: 'الإكراميات' },
         { id: 'parkingEgp', label: 'الباركينج والرسوم' },
         { id: 'accomEgp', label: 'مصروفات الإقامة' },
@@ -1115,7 +1116,7 @@
                             <td>${item.ticketsNotes || '-'}</td>
                         </tr>
                         <tr>
-                            <td>مصاريف الغداء</td>
+                            <td>مصاريف المطاعم</td>
                             <td>${(parseFloat(item.lunchEgp) || 0).toFixed(2)} EGP</td>
                             <td>-</td>
                             <td>${item.lunchNotes || '-'}</td>
