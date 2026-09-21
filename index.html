@@ -150,6 +150,8 @@
         .table-responsive { width: 100%; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; min-width: 600px; }
         th, td { border: 1px solid var(--border-vintage); padding: 10px 12px; text-align: center; font-size: 1.05em; unicode-bidi: plaintext; }
+        /* عمود التاريخ: ما يلفش على سطرين وله عرض أدنى، عشان التاريخ ما يدخلش على العمود اللي جنبه */
+        th.date-col, td.date-col { white-space: nowrap; min-width: 110px; }
         th { background-color: #e8dbca; color: var(--primary-navy); font-weight: bold; border-bottom: 2px solid var(--vintage-gold-dark); }
         tfoot td { background-color: #e8dbca; font-weight: bold; color: var(--primary-navy); border-top: 2px solid var(--vintage-gold-dark); }
 
@@ -450,7 +452,7 @@
                             <tr>
                                 <th>اسم المرشد</th>
                                 <th>رقم الملف</th>
-                                <th>التاريخ</th>
+                                <th class="date-col">التاريخ</th>
                                 <th>ما بذمته</th>
                                 <th>المصروفات</th>
                                 <th>الصافي</th>
@@ -497,7 +499,7 @@
                             <tr>
                                 <th>اسم المرشد</th>
                                 <th>رقم الملف</th>
-                                <th>تاريخ الحسم</th>
+                                <th class="date-col">تاريخ الحسم</th>
                                 <th>أتعاب المرشد</th>
                                 <th>ما بذمته</th>
                                 <th>المصروفات</th>
@@ -1145,7 +1147,7 @@
             tr.innerHTML = `
                 <td><b>${item.guideName}</b></td>
                 <td>${item.fileNo}</td>
-                <td>${item.date}</td>
+                <td class="date-col">${item.date}</td>
                 <td>${item.totalDue}</td>
                 <td>${item.totalExp}</td>
                 <td><b>${item.netAmount}</b></td>
@@ -1219,7 +1221,7 @@
             tr.innerHTML = `
                 <td><b>${item.guideName}</b></td>
                 <td>${item.fileNo}</td>
-                <td>${item.finalDate || item.date}</td>
+                <td class="date-col">${item.finalDate || item.date}</td>
                 <td>${(item.feeEgp || 0).toFixed(2)} EGP</td>
                 <td>${item.totalDue}</td>
                 <td>${item.totalExp}</td>
